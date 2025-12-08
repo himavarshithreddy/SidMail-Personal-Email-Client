@@ -176,20 +176,59 @@ async function listMessages(account, mailbox, cursorUid, limit = 20) {
   return { messages, nextCursor };
 }
 
-function collectAttachments(structure, out = []) {
+function collectAttachments(structure, out = [], parentIsMultipart = false) {
   if (!structure) return out;
-  if (structure.disposition?.type?.toLowerCase() === "attachment") {
+  
+  const isMultipart = structure.type?.toLowerCase() === "multipart";
+  const isText = structure.type?.toLowerCase() === "text";
+  const disposition = structure.disposition?.type?.toLowerCase();
+  const hasFilename = structure.disposition?.params?.filename || structure.parameters?.name;
+  
+  // Skip multipart containers themselves, but process their children
+  if (isMultipart) {
+    if (structure.childNodes) {
+      structure.childNodes.forEach((child) => collectAttachments(child, out, true));
+    }
+    return out;
+  }
+  
+  // Determine if this is an attachment
+  // It's an attachment if:
+  // 1. It has explicit "attachment" disposition, OR
+  // 2. It has "inline" disposition AND is not text/html or text/plain (likely embedded image), OR
+  // 3. It has a filename AND is not the main message body text
+  const isAttachment = 
+    disposition === "attachment" ||
+    (disposition === "inline" && !isText) ||
+    (hasFilename && isText && (structure.subtype?.toLowerCase() !== "plain" && structure.subtype?.toLowerCase() !== "html")) ||
+    (hasFilename && !isText);
+  
+  // Exclude main message body parts (text/plain and text/html without disposition)
+  const isMainBody = isText && 
+                     (structure.subtype?.toLowerCase() === "plain" || structure.subtype?.toLowerCase() === "html") &&
+                     !disposition &&
+                     !hasFilename;
+  
+  if (isAttachment && !isMainBody) {
+    const filename = structure.disposition?.params?.filename || 
+                     structure.parameters?.name ||
+                     (structure.id ? structure.id.replace(/[<>]/g, "") : null) ||
+                     `attachment-${structure.part || "unknown"}`;
+    
     out.push({
       part: structure.part,
-      filename: structure.disposition?.params?.filename || "attachment",
-      mimeType: structure.type + "/" + structure.subtype,
+      filename: filename,
+      mimeType: (structure.type || "application") + "/" + (structure.subtype || "octet-stream"),
       size: structure.size || 0,
       cid: structure.id || null,
     });
   }
+  
+  // Process child nodes if any
   if (structure.childNodes) {
-    structure.childNodes.forEach((child) => collectAttachments(child, out));
+    structure.childNodes.forEach((child) => collectAttachments(child, out, isMultipart));
   }
+  
   return out;
 }
 

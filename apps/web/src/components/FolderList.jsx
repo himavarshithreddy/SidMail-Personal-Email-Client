@@ -25,15 +25,6 @@ const folderIcons = {
       <path d="m21.854 2.147-10.94 10.939" />
     </svg>
   ),
-  "Drafts": (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-muted-foreground">
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M10 9H8" />
-      <path d="M16 13H8" />
-      <path d="M16 17H8" />
-    </svg>
-  ),
   "Archive": (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-muted-foreground">
       <rect width="20" height="5" x="2" y="3" rx="1" />
@@ -80,7 +71,7 @@ export const FolderList = memo(function FolderList({
   }
 
   // Only show core folders
-  const coreFolderNames = ["INBOX", "Inbox", "Starred", "Sent", "Drafts", "Archive", "Trash"];
+  const coreFolderNames = ["INBOX", "Inbox", "Starred", "Sent", "Archive", "Trash"];
   const coreFolders = folders.filter(f => 
     coreFolderNames.some(name => f.path.includes(name) || f.name === name)
   );
@@ -129,7 +120,7 @@ export const FolderList = memo(function FolderList({
               return (
                 <button
                   key={folder.path}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-lg transition-colors cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-base transition-colors cursor-pointer ${
                     isSelected
                       ? "bg-primary/10 text-foreground font-medium"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
@@ -149,7 +140,7 @@ export const FolderList = memo(function FolderList({
                     {(folder.name || folder.path).toLowerCase()}
                   </span>
                   {folder.count > 0 && (
-                    <span className="text-base text-muted-foreground tabular-nums">{folder.count}</span>
+                    <span className="text-sm text-muted-foreground tabular-nums">{folder.count}</span>
                   )}
                 </button>
               );

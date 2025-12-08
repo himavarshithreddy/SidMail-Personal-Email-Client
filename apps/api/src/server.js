@@ -211,6 +211,47 @@ app.get("/mail/messages/:uid", authMiddleware, async (req, res) => {
     }
     console.log(`/mail/messages/${uid} - parsing message...`);
     const parsed = await parseMessage(msg.source);
+    
+    // Merge attachments from bodyStructure (has part) with parsed attachments (more comprehensive)
+    // Create a map of attachments by filename/contentType for matching
+    const attachmentMap = new Map();
+    
+    // First, add all bodyStructure attachments (they have the part field we need)
+    msg.attachments.forEach(att => {
+      const key = `${att.filename || ""}_${att.mimeType || ""}`;
+      attachmentMap.set(key, att);
+    });
+    
+    // Then, try to match parsed attachments and add missing ones
+    // For parsed attachments without a matching bodyStructure attachment,
+    // we'll try to find the part by matching filename/contentType
+    if (parsed.attachments && parsed.attachments.length > 0) {
+      parsed.attachments.forEach(parsedAtt => {
+        const key = `${parsedAtt.filename || ""}_${parsedAtt.contentType || ""}`;
+        if (!attachmentMap.has(key)) {
+          // Try to find matching part in bodyStructure
+          const matchingBodyAtt = msg.attachments.find(ba => 
+            (ba.filename === parsedAtt.filename || 
+             (ba.filename && parsedAtt.filename && ba.filename.toLowerCase() === parsedAtt.filename.toLowerCase())) &&
+            (ba.mimeType === parsedAtt.contentType ||
+             (ba.mimeType && parsedAtt.contentType && ba.mimeType.toLowerCase() === parsedAtt.contentType.toLowerCase()))
+          );
+          
+          if (matchingBodyAtt && matchingBodyAtt.part) {
+            // Use the bodyStructure attachment which has the part
+            attachmentMap.set(key, matchingBodyAtt);
+          } else {
+            // If no match found, we can't download it (no part), but we can still show it
+            // For now, we'll skip it since we need the part to download
+            console.log(`Attachment ${parsedAtt.filename} found in parsed message but no matching part in bodyStructure`);
+          }
+        }
+      });
+    }
+    
+    // Convert map back to array
+    const mergedAttachments = Array.from(attachmentMap.values());
+    
     console.log(`/mail/messages/${uid} - success`);
     res.json({
       uid: msg.uid,
@@ -219,7 +260,7 @@ app.get("/mail/messages/:uid", authMiddleware, async (req, res) => {
       date: msg.date,
       size: msg.size,
       message: parsed,
-      attachments: msg.attachments,
+      attachments: mergedAttachments,
     });
   } catch (err) {
     console.error(`/mail/messages/${uid} - error:`, err);
@@ -234,14 +275,35 @@ app.get("/mail/attachments/:uid/:part", authMiddleware, async (req, res) => {
   if (!uid || !part) return res.status(400).json({ error: "invalid attachment request" });
 
   try {
+    // First, get the message to find the attachment metadata (for filename)
+    const msg = await getMessage(req.account, folder, uid);
+    if (!msg) {
+      return res.status(404).json({ error: "message not found" });
+    }
+    
+    // Find the attachment by part to get its filename
+    const attachment = msg.attachments.find(att => att.part === part);
+    const attachmentFilename = attachment?.filename;
+    
+    // Download the attachment content
     const download = await downloadAttachment(req.account, folder, uid, part);
     if (!download) {
       return res.status(404).json({ error: "attachment not found" });
     }
+    
+    // Get filename from attachment metadata first, then fall back to disposition
+    const filename = attachmentFilename || 
+                     download.disposition?.parameters?.filename || 
+                     `attachment-${part}`;
+    
+    // Ensure filename has proper encoding for Content-Disposition header
+    // Escape quotes and use RFC 5987 encoding for non-ASCII characters
+    const safeFilename = filename.replace(/"/g, '\\"');
+    const encodedFilename = encodeURIComponent(filename);
+    const contentDisposition = `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`;
+    
     res.setHeader("Content-Type", download.contentType || "application/octet-stream");
-    if (download.disposition?.parameters?.filename) {
-      res.setHeader("Content-Disposition", `attachment; filename="${download.disposition.parameters.filename}"`);
-    }
+    res.setHeader("Content-Disposition", contentDisposition);
     download.content.pipe(res);
   } catch (err) {
     console.error(`/mail/attachments/${uid}/${part} - error:`, err);

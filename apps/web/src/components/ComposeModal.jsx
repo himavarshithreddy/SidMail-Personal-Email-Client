@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ErrorMessage } from "./ui/ErrorMessage";
 import { validateEmails } from "../lib/validation";
 
-export function ComposeModal({ isOpen, onClose, onSend }) {
+export function ComposeModal({ isOpen, onClose, onSend, initialData }) {
   const [formData, setFormData] = useState({ to: "", subject: "", text: "" });
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -13,17 +13,37 @@ export function ComposeModal({ isOpen, onClose, onSend }) {
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ to: "", subject: "", text: "" });
-      setCcBcc({ cc: "", bcc: "" });
-      setShowCc(false);
-      setShowBcc(false);
+      if (initialData) {
+        setFormData({
+          to: initialData.to || "",
+          subject: initialData.subject || "",
+          text: initialData.text || "",
+        });
+        if (initialData.cc) {
+          setCcBcc({ cc: initialData.cc, bcc: initialData.bcc || "" });
+          setShowCc(true);
+        } else {
+          setCcBcc({ cc: "", bcc: initialData.bcc || "" });
+          setShowCc(false);
+        }
+        if (initialData.bcc) {
+          setShowBcc(true);
+        } else {
+          setShowBcc(false);
+        }
+      } else {
+        setFormData({ to: "", subject: "", text: "" });
+        setCcBcc({ cc: "", bcc: "" });
+        setShowCc(false);
+        setShowBcc(false);
+      }
       setError("");
       // Focus first input
       setTimeout(() => {
         modalRef.current?.querySelector("input")?.focus();
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   // Handle Escape key
   useEffect(() => {
@@ -96,7 +116,7 @@ export function ComposeModal({ isOpen, onClose, onSend }) {
       >
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <h2 id="compose-title" className="text-xl font-semibold text-foreground">
-            Compose Message
+            {initialData?.isForward ? "Forward Message" : "Compose Message"}
           </h2>
           <button
             className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"

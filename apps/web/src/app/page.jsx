@@ -37,6 +37,7 @@ export default function Home() {
   } = useMail();
 
   const [composeOpen, setComposeOpen] = useState(false);
+  const [composeInitialData, setComposeInitialData] = useState(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -296,10 +297,33 @@ export default function Home() {
     }
   };
 
+  const handleForward = () => {
+    if (!messageDetail) return;
+    
+    // Format the forwarded message
+    const forwardText = `\n\n---------- Forwarded message ----------\n` +
+      `From: ${messageDetail.message.from.map(f => f.name || f.address).join(", ")}\n` +
+      `Date: ${new Date(messageDetail.date).toLocaleString()}\n` +
+      `To: ${messageDetail.message.to.map(f => f.address || f.name).join(", ")}\n` +
+      `Subject: ${messageDetail.message.subject || "(No subject)"}\n\n` +
+      `${messageDetail.message.text || messageDetail.message.html?.replace(/<[^>]*>/g, "") || ""}`;
+    
+    const forwardSubject = `Fwd: ${messageDetail.message.subject || "(No subject)"}`;
+    
+    setComposeInitialData({
+      to: "",
+      subject: forwardSubject,
+      text: forwardText,
+      isForward: true,
+    });
+    setComposeOpen(true);
+  };
+
   const handleSendMail = async (mailData) => {
     try {
       await sendMail(mailData);
       showToast("Message sent");
+      setComposeInitialData(null);
       // Refresh messages after sending
       setTimeout(() => {
         loadMessages(selectedFolder, null, true).catch(handleError);
@@ -400,7 +424,11 @@ export default function Home() {
             detail={messageDetail}
             loading={loading.detail}
             selectedFolder={selectedFolder}
-            onCompose={() => setComposeOpen(true)}
+            onCompose={() => {
+              setComposeInitialData(null);
+              setComposeOpen(true);
+            }}
+            onForward={handleForward}
             onStar={handleStar}
             onMarkUnread={handleMarkUnread}
             onDelete={handleDelete}
@@ -414,8 +442,12 @@ export default function Home() {
       {/* Compose Modal */}
       <ComposeModal
         isOpen={composeOpen}
-        onClose={() => setComposeOpen(false)}
+        onClose={() => {
+          setComposeOpen(false);
+          setComposeInitialData(null);
+        }}
         onSend={handleSendMail}
+        initialData={composeInitialData}
       />
 
       {/* Help Modal */}
