@@ -1,83 +1,51 @@
 export function SplashLoader() {
   return (
     <div className="fixed inset-0 bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center gap-8">
+      <div className="flex flex-col items-center">
         {/* Logo */}
-        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
+        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
           <span className="text-primary-foreground font-bold text-2xl">S</span>
         </div>
 
         {/* App Name */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-foreground">
-            SidMail
+        <div className="text-center space-y-2 mt-16">
+          <h1 className="text-4xl font-bold font-futuristic relative">
+            <span className="text-primary">SID</span><span className="text-white">MAIL</span>
           </h1>
-          <p className="text-sm text-muted-foreground">Loading...</p>
+    
         </div>
 
-        {/* Animated Shapes */}
-        <div className="flex items-center justify-center gap-3 h-12">
-          {/* Circle */}
-          <div 
-            className="w-3 h-3 rounded-full bg-primary animate-bounce"
-            style={{ animationDelay: "0ms", animationDuration: "1s" }}
-          ></div>
+        {/* Futuristic Orbiting Particles */}
+        <div className="relative w-20 h-20 flex items-center justify-center mt-16">
+          {/* Central pulsing orb */}
+          <div className="absolute w-4 h-4 rounded-full bg-primary animate-pulse"></div>
           
-          {/* Triangle */}
-          <div 
-            className="w-0 h-0 animate-bounce"
-            style={{ 
-              animationDelay: "120ms", 
-              animationDuration: "1s",
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderBottom: "10px solid hsl(var(--accent))"
-            }}
-          ></div>
+          {/* Orbiting particles */}
+          <div className="absolute w-full h-full animate-spin" style={{ animationDuration: '2s' }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary/80"></div>
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 rounded-full bg-accent/80"></div>
+          </div>
           
-          {/* Square */}
-          <div 
-            className="w-3 h-3 bg-primary animate-bounce"
-            style={{ animationDelay: "240ms", animationDuration: "1s" }}
-          ></div>
+          {/* Outer ring particles */}
+          <div className="absolute w-full h-full animate-spin" style={{ animationDuration: '3s', animationDirection: 'reverse' }}>
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary/60"></div>
+            <div className="absolute top-1/2 left-0 -translate-y-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-accent/60"></div>
+          </div>
           
-          {/* Diamond */}
-          <div 
-            className="w-3 h-3 bg-accent animate-bounce"
-            style={{ 
-              animationDelay: "360ms", 
-              animationDuration: "1s",
-              transform: "rotate(45deg)"
-            }}
-          ></div>
-          
-          {/* Pentagon (using hexagon approximation) */}
-          <div 
-            className="w-3 h-3 bg-primary animate-bounce"
-            style={{ 
-              animationDelay: "480ms", 
-              animationDuration: "1s",
-              clipPath: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)"
-            }}
-          ></div>
-          
-          {/* Hexagon */}
-          <div 
-            className="w-3 h-3 bg-accent animate-bounce"
-            style={{ 
-              animationDelay: "600ms", 
-              animationDuration: "1s",
-              clipPath: "polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%)"
-            }}
-          ></div>
+          {/* Glowing rings */}
+          <div className="absolute inset-0 rounded-full border border-primary/20 animate-ping" style={{ animationDuration: '2s' }}></div>
+          <div className="absolute inset-2 rounded-full border border-accent/20 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}></div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-72 h-1 bg-muted rounded-full overflow-hidden">
+        {/* Futuristic Progress Bar */}
+        <div className="w-72 h-1.5 bg-muted/30 rounded-full overflow-hidden relative mt-16">
           <div 
-            className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full animate-loading-bar"
+            className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full animate-loading-bar relative"
             style={{ width: "40%" }}
-          ></div>
+          >
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+          </div>
         </div>
       </div>
     </div>

@@ -70,17 +70,48 @@ export const FolderList = memo(function FolderList({
     );
   }
 
-  // Only show core folders
-  const coreFolderNames = ["INBOX", "Inbox", "Starred", "Sent", "Archive", "Trash"];
-  const coreFolders = folders.filter(f => 
-    coreFolderNames.some(name => f.path.includes(name) || f.name === name)
-  );
+  // Define core folders for ordering (they'll appear first)
+  const coreFolderNames = ["INBOX", "Inbox", "Starred", "Sent", "Archive", "Trash", "Spam", "Junk"];
+  
+  // Sort folders: core folders first, then others
+  const sortedFolders = (folders || []).filter(f => f != null).sort((a, b) => {
+    if (!a || !b) return 0;
+    const aIsCore = coreFolderNames.some(name => (a.path && a.path.includes(name)) || a.name === name);
+    const bIsCore = coreFolderNames.some(name => (b.path && b.path.includes(name)) || b.name === name);
+    
+    if (aIsCore && !bIsCore) return -1;
+    if (!aIsCore && bIsCore) return 1;
+    
+    // Within same category, sort alphabetically
+    const aName = (a.name || a.path || '').toLowerCase();
+    const bName = (b.name || b.path || '').toLowerCase();
+    return aName.localeCompare(bName);
+  });
 
   const getFolderIcon = (folder) => {
-    for (const [key, icon] of Object.entries(folderIcons)) {
-      if (folder.name === key || folder.path.includes(key)) {
-        return icon;
+    const defaultIcon = (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-muted-foreground">
+        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      </svg>
+    );
+    
+    if (!folder || !folderIcons || typeof folderIcons !== 'object') {
+      return defaultIcon;
+    }
+    
+    try {
+      const entries = Object.entries(folderIcons);
+      if (!entries || entries.length === 0) {
+        return defaultIcon;
       }
+      for (const [key, icon] of entries) {
+        if ((folder.name === key) || (folder.path && folder.path.includes(key))) {
+          return icon;
+        }
+      }
+    } catch (error) {
+      console.error('Error getting folder icon:', error);
+      return defaultIcon;
     }
     return (
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-muted-foreground">
@@ -114,8 +145,8 @@ export const FolderList = memo(function FolderList({
           </div>
         ) : (
           <div className="space-y-0.5">
-            {/* Core Folders */}
-            {coreFolders.map((folder) => {
+            {/* All Folders */}
+            {sortedFolders.map((folder) => {
               const isSelected = selectedFolder === folder.path;
               return (
                 <button
@@ -137,7 +168,14 @@ export const FolderList = memo(function FolderList({
                     getFolderIcon(folder)
                   )}
                   <span className="flex-1 text-left capitalize">
-                    {(folder.name || folder.path).toLowerCase()}
+                    {(() => {
+                      const folderName = (folder.name || folder.path).toLowerCase();
+                      // Replace "junk" with "spam" for display
+                      if (folderName.includes("junk")) {
+                        return folderName.replace(/junk/g, "spam");
+                      }
+                      return folderName;
+                    })()}
                   </span>
                   {folder.count > 0 && (
                     <span className="text-sm text-muted-foreground tabular-nums">{folder.count}</span>

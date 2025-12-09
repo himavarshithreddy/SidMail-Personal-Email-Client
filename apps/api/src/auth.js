@@ -3,7 +3,7 @@ const { jwtSecret, cookieName, cookieSecure } = require("./config");
 const { getAccount } = require("./db");
 
 function signSession(accountId) {
-  return jwt.sign({ aid: accountId }, jwtSecret, { expiresIn: "12h" });
+  return jwt.sign({ aid: accountId }, jwtSecret, { expiresIn: "30d" });
 }
 
 function verifyToken(token) {
@@ -32,7 +32,7 @@ function setSessionCookie(res, token) {
     httpOnly: true,
     sameSite: "lax",
     secure: cookieSecure,
-    maxAge: 12 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
     path: "/",
   });
 }

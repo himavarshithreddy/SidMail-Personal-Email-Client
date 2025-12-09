@@ -156,6 +156,25 @@ export function useMail() {
     }
   }, [selectedMessage]);
 
+  const markAsSpam = useCallback(async (message, folder, isSpam) => {
+    await apiFetch("/mail/spam", {
+      method: "POST",
+      body: JSON.stringify({ 
+        uid: message.uid, 
+        folder,
+        markAsSpam: isSpam,
+      }),
+    });
+    
+    // Remove from current list since it moved
+    setMessages((prev) => prev.filter((m) => m.uid !== message.uid));
+    
+    if (selectedMessage?.uid === message.uid) {
+      setSelectedMessage(null);
+      setMessageDetail(null);
+    }
+  }, [selectedMessage]);
+
   const sendMail = useCallback(async (mailData) => {
     await apiFetch("/mail/send", {
       method: "POST",
@@ -184,6 +203,7 @@ export function useMail() {
     markSeen,
     toggleFlag,
     deleteMessage,
+    markAsSpam,
     sendMail,
     selectFolder,
   };

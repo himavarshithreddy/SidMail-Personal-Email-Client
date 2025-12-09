@@ -43,6 +43,7 @@ export const MessageList = memo(function MessageList({
   onBulkDelete,
   onBulkMarkRead,
   onBulkMarkUnread,
+  onBulkRemoveFromSpam,
   hasMore,
   loading,
   error,
@@ -130,6 +131,8 @@ export const MessageList = memo(function MessageList({
         onDelete={onBulkDelete}
         onMarkRead={onBulkMarkRead}
         onMarkUnread={onBulkMarkUnread}
+        onRemoveFromSpam={onBulkRemoveFromSpam}
+        selectedFolder={selectedFolder}
         onClearSelection={() => onSelectAll(false)}
       />
 

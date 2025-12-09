@@ -32,10 +32,10 @@ export function ComposeModal({ isOpen, onClose, onSend, initialData }) {
           setShowBcc(false);
         }
       } else {
-        setFormData({ to: "", subject: "", text: "" });
-        setCcBcc({ cc: "", bcc: "" });
-        setShowCc(false);
-        setShowBcc(false);
+      setFormData({ to: "", subject: "", text: "" });
+      setCcBcc({ cc: "", bcc: "" });
+      setShowCc(false);
+      setShowBcc(false);
       }
       setError("");
       // Focus first input

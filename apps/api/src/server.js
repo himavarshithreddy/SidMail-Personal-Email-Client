@@ -17,6 +17,7 @@ const {
   downloadAttachment,
   setFlags,
   deleteMessage,
+  moveMessage,
   verifyImap,
   credsFromAccount,
   closeConnection,
@@ -371,6 +372,61 @@ app.post("/mail/delete", authMiddleware, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "failed to delete message", detail: err.message });
+  }
+});
+
+app.post("/mail/move", authMiddleware, async (req, res) => {
+  const schema = z.object({
+    uid: z.number().int(),
+    sourceFolder: z.string(),
+    targetFolder: z.string(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
+  const { uid, sourceFolder, targetFolder } = parsed.data;
+  try {
+    await moveMessage(req.account, sourceFolder, targetFolder, uid);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "failed to move message", detail: err.message });
+  }
+});
+
+app.post("/mail/spam", authMiddleware, async (req, res) => {
+  const schema = z.object({
+    uid: z.number().int(),
+    folder: z.string(),
+    markAsSpam: z.boolean(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
+  const { uid, folder, markAsSpam } = parsed.data;
+  
+  try {
+    // Get all folders to find spam folder
+    const folders = await listFolders(req.account);
+    const spamFolder = folders.find(f => 
+      f.name.toLowerCase() === "spam" || 
+      f.name.toLowerCase() === "junk" ||
+      f.path.toLowerCase().includes("spam") ||
+      f.path.toLowerCase().includes("junk")
+    );
+    
+    if (!spamFolder) {
+      return res.status(404).json({ error: "spam folder not found" });
+    }
+    
+    if (markAsSpam) {
+      // Move to spam folder
+      await moveMessage(req.account, folder, spamFolder.path, uid);
+    } else {
+      // Move from spam back to INBOX
+      await moveMessage(req.account, folder, "INBOX", uid);
+    }
+    
+    res.json({ ok: true, spamFolder: spamFolder.path });
+  } catch (err) {
+    res.status(500).json({ error: "failed to mark as spam", detail: err.message });
   }
 });
 

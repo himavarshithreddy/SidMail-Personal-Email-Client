@@ -64,7 +64,9 @@ export function TopBar({
           <div className="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">S</span>
           </div>
-          <span className="text-lg font-semibold text-foreground tracking-tight">SidMail</span>
+          <span className="text-lg font-semibold tracking-tight font-futuristic relative">
+            <span className="text-primary">SID</span><span className="text-white">MAIL</span>
+          </span>
         </div>
       </div>
 

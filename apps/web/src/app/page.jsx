@@ -9,7 +9,7 @@ import { TopBar } from "../components/TopBar";
 import { FolderList } from "../components/FolderList";
 import { MessageList } from "../components/MessageList";
 import { MessageDetail } from "../components/MessageDetail";
-import { ComposeModal } from "../components/ComposeModal";
+import { DetailView } from "../components/DetailView";
 import { MobileNav } from "../components/MobileNav";
 import { HelpModal } from "../components/HelpModal";
 import { Toast } from "../components/ui/Toast";
@@ -32,6 +32,7 @@ export default function Home() {
     markSeen,
     toggleFlag,
     deleteMessage,
+    markAsSpam,
     sendMail,
     selectFolder,
   } = useMail();
@@ -49,7 +50,13 @@ export default function Home() {
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
-    "c": () => isAuthed && setComposeOpen(true),
+    "c": () => {
+      if (isAuthed) {
+        setComposeInitialData(null);
+        setComposeOpen(true);
+        setMobileView("detail");
+      }
+    },
     "?": () => setHelpOpen(true),
     "escape": () => {
       if (composeOpen) setComposeOpen(false);
@@ -197,6 +204,21 @@ export default function Home() {
     }
   };
 
+  const handleBulkRemoveFromSpam = async () => {
+    if (selectedEmails.size === 0) return;
+    try {
+      const movePromises = Array.from(selectedEmails).map(uid => {
+        const msg = messages.find(m => m.uid === uid);
+        return msg ? markAsSpam(msg, selectedFolder, false) : Promise.resolve();
+      });
+      await Promise.all(movePromises);
+      showToast(`Moved ${selectedEmails.size} message(s) to inbox`);
+      setSelectedEmails(new Set());
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
   // Load folders only once when authenticated
   useEffect(() => {
     if (isAuthed) {
@@ -253,6 +275,11 @@ export default function Home() {
   };
 
   const handleSelectMessage = (message) => {
+    // Close compose if open
+    if (composeOpen) {
+      setComposeOpen(false);
+      setComposeInitialData(null);
+    }
     loadMessageDetail(message, selectedFolder)
       .catch((err) => {
         if (err.message && err.message.includes("not found")) {
@@ -297,6 +324,26 @@ export default function Home() {
     }
   };
 
+  const handleMarkAsSpam = async () => {
+    if (!selectedMessage) return;
+    try {
+      await markAsSpam(selectedMessage, selectedFolder, true);
+      showToast("Message marked as spam");
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
+  const handleUnmarkSpam = async () => {
+    if (!selectedMessage) return;
+    try {
+      await markAsSpam(selectedMessage, selectedFolder, false);
+      showToast("Message moved to inbox");
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
   const handleForward = () => {
     if (!messageDetail) return;
     
@@ -317,6 +364,7 @@ export default function Home() {
       isForward: true,
     });
     setComposeOpen(true);
+    setMobileView("detail");
   };
 
   const handleSendMail = async (mailData) => {
@@ -324,6 +372,11 @@ export default function Home() {
       await sendMail(mailData);
       showToast("Message sent");
       setComposeInitialData(null);
+      setComposeOpen(false);
+      // If on mobile, go back to messages view
+      if (window.innerWidth < 1024) {
+        setMobileView("messages");
+      }
       // Refresh messages after sending
       setTimeout(() => {
         loadMessages(selectedFolder, null, true).catch(handleError);
@@ -347,7 +400,9 @@ export default function Home() {
               <div className="w-10 h-10 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-base">S</span>
               </div>
-              <h1 className="text-2xl font-semibold text-foreground">SidMail</h1>
+              <h1 className="text-3xl font-semibold font-futuristic relative">
+                <span className="text-primary">SID</span><span className="text-white">MAIL</span>
+              </h1>
             </div>
           </header>
 
@@ -390,7 +445,11 @@ export default function Home() {
             folders={folders}
             selectedFolder={selectedFolder}
             onSelectFolder={handleSelectFolder}
-            onCompose={() => setComposeOpen(true)}
+            onCompose={() => {
+              setComposeInitialData(null);
+              setComposeOpen(true);
+              setMobileView("detail");
+            }}
             loading={loading.folders}
           />
         </div>
@@ -410,6 +469,7 @@ export default function Home() {
             onBulkDelete={handleBulkDelete}
             onBulkMarkRead={handleBulkMarkRead}
             onBulkMarkUnread={handleBulkMarkUnread}
+            onBulkRemoveFromSpam={handleBulkRemoveFromSpam}
             hasMore={!!nextCursor}
             loading={loading.messages}
             error={error}
@@ -417,20 +477,34 @@ export default function Home() {
           />
         </div>
 
-        {/* Message Detail */}
-        <div className={`${mobileView === "detail" ? "block" : "hidden"} lg:block flex-1`}>
-          <MessageDetail
+        {/* Message Detail or Compose */}
+        <div className={`${mobileView === "detail" || composeOpen ? "block" : "hidden"} lg:block flex-1`}>
+          <DetailView
+            composeOpen={composeOpen}
+            composeInitialData={composeInitialData}
+            onCloseCompose={() => {
+              setComposeOpen(false);
+              setComposeInitialData(null);
+              // If on mobile and no message selected, go back to messages view
+              if (window.innerWidth < 1024 && !selectedMessage) {
+                setMobileView("messages");
+              }
+            }}
+            onSendMail={handleSendMail}
             message={selectedMessage}
-            detail={messageDetail}
+            messageDetail={messageDetail}
             loading={loading.detail}
             selectedFolder={selectedFolder}
             onCompose={() => {
               setComposeInitialData(null);
               setComposeOpen(true);
+              setMobileView("detail");
             }}
             onForward={handleForward}
             onStar={handleStar}
             onMarkUnread={handleMarkUnread}
+            onMarkAsSpam={handleMarkAsSpam}
+            onUnmarkSpam={handleUnmarkSpam}
             onDelete={handleDelete}
           />
         </div>
@@ -438,17 +512,6 @@ export default function Home() {
 
       {/* Mobile Navigation */}
       <MobileNav currentView={mobileView} onViewChange={setMobileView} />
-
-      {/* Compose Modal */}
-      <ComposeModal
-        isOpen={composeOpen}
-        onClose={() => {
-          setComposeOpen(false);
-          setComposeInitialData(null);
-        }}
-        onSend={handleSendMail}
-        initialData={composeInitialData}
-      />
 
       {/* Help Modal */}
       <HelpModal

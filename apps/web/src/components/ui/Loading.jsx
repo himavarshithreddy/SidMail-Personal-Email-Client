@@ -1,7 +1,16 @@
 export function Loading({ className = "" }) {
   return (
     <div className={`flex items-center justify-center py-8 ${className}`}>
-      <div className="w-8 h-8 rounded-full border-2 border-muted border-t-primary animate-spin"></div>
+      <div className="relative w-12 h-12">
+        {/* Outer rotating ring */}
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary/60 border-r-primary/40 animate-spin" style={{ animationDuration: '1s' }}></div>
+        {/* Middle ring */}
+        <div className="absolute inset-1 rounded-full border-2 border-transparent border-b-accent/60 border-l-accent/40 animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+        {/* Inner pulsing dot */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+        </div>
+      </div>
     </div>
   );
 }

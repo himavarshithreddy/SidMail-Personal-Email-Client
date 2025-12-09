@@ -336,6 +336,24 @@ async function deleteMessage(account, mailbox, uid) {
   }
 }
 
+async function moveMessage(account, sourceMailbox, targetMailbox, uid) {
+  const client = await getClient(account);
+  await openMailbox(client, sourceMailbox);
+  
+  try {
+    await client.messageMove(uid, targetMailbox, { uid: true });
+  } catch (err) {
+    const errMsg = err.message || "";
+    const errText = err.responseText || "";
+    
+    if (errMsg.includes("Invalid messageset") || errText.includes("Invalid messageset")) {
+      console.log(`moveMessage - UID ${uid} not found in ${sourceMailbox}`);
+      return;
+    }
+    throw err;
+  }
+}
+
 async function verifyImap(creds) {
   console.log("verifyImap - creating client with:", { host: creds.imap_host, port: creds.imap_port, secure: creds.imap_secure, user: creds.username });
   const client = new ImapFlow({
@@ -364,6 +382,7 @@ module.exports = {
   downloadAttachment,
   setFlags,
   deleteMessage,
+  moveMessage,
   verifyImap,
   credsFromAccount,
   closeConnection,
