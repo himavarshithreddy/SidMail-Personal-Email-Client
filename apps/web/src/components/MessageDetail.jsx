@@ -387,9 +387,9 @@ export function MessageDetail({
                 )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {detail.attachments.map((att) => (
+                {detail.attachments.map((att, idx) => (
                   <AttachmentCard
-                    key={att.part}
+                    key={att.part || att.filename || idx}
                     attachment={att}
                     uid={detail.uid}
                     folder={selectedFolder}
