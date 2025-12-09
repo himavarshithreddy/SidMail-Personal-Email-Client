@@ -114,8 +114,18 @@ async function getAccount(id) {
   return row;
 }
 
+async function updateAccountCreds(id, encCreds) {
+  const { db } = await getDb();
+  const stmt = db.prepare("UPDATE accounts SET enc_creds = ?, updated_at = ? WHERE id = ?");
+  const timestamp = new Date().toISOString();
+  stmt.run([encCreds, timestamp, id]);
+  stmt.free();
+  persist(db);
+}
+
 module.exports = {
   insertAccount,
   getAccount,
+  updateAccountCreds,
 };
 

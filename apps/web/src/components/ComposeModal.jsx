@@ -325,8 +325,7 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
           </button>
         </div>
 
-        <form className="space-y-4 relative" onSubmit={handleSubmit}>
-          {sending && <div className="absolute inset-0 z-20 bg-background/40 cursor-not-allowed" aria-hidden="true" />}
+        <form className={`space-y-4 relative ${sending ? 'cursor-not-allowed' : ''}`} onSubmit={handleSubmit}>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label htmlFor="compose-to" className="text-base font-medium text-foreground">
@@ -676,7 +675,7 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
                         }
                       }}
                       disabled={sending || !editor}
-                    />
+            />
                   </div>
                   <div className="flex items-center gap-2">
                     <button

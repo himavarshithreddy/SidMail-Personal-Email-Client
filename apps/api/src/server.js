@@ -7,7 +7,7 @@ const rateLimit = require("express-rate-limit");
 const { z } = require("zod");
 
 const config = require("./config");
-const { insertAccount } = require("./db");
+const { insertAccount, updateAccountCreds } = require("./db");
 const { encrypt } = require("./crypto");
 const { signSession, verifySession, setSessionCookie, clearSessionCookie, authMiddleware } = require("./auth");
 const {
@@ -22,6 +22,7 @@ const {
   credsFromAccount,
   closeConnection,
   appendToSent,
+  resolveSubAccountCreds,
 } = require("./services/imap");
 const { verifySmtp, sendMail } = require("./services/smtp");
 const { parseMessage } = require("./utils/messageParser");
@@ -218,10 +219,113 @@ app.post("/auth/logout", async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/auth/add-account", authMiddleware, async (req, res) => {
+  const schema = z.object({
+    username: z.string().min(1),
+    password: z.string().min(1),
+    imapHost: z.string().optional(),
+    imapPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultImapPort),
+    imapSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultImapSecure),
+    smtpHost: z.string().optional(),
+    smtpPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultSmtpPort),
+    smtpSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultSmtpSecure),
+    label: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
+  }
+
+  const payload = parsed.data;
+  const newAccount = {
+    id: String(Date.now()),
+    label: payload.label || payload.username,
+    username: payload.username,
+    password: payload.password,
+  };
+
+  try {
+    const base = credsFromAccount(req.account);
+    let accounts = Array.isArray(base.accounts) ? base.accounts : [];
+    
+    // If there are no existing accounts, create the first account from base credentials
+    // This handles the case where the first account was created via /auth/login
+    // and doesn't have an accounts array yet
+    if (accounts.length === 0 && base.username) {
+      accounts = [{
+        id: "default",
+        label: base.username,
+        username: base.username,
+        password: base.password,
+      }];
+    }
+    
+    // Check if the account being added already exists (by username)
+    const accountExists = accounts.some(a => a.username === payload.username);
+    if (accountExists) {
+      return res.status(400).json({ error: "account already exists", detail: "An account with this username already exists" });
+    }
+    
+    const next = {
+      ...base,
+      imap_host: payload.imapHost || base.imap_host || config.defaultImapHost,
+      imap_port: payload.imapPort ?? base.imap_port ?? config.defaultImapPort,
+      imap_secure: payload.imapSecure ?? base.imap_secure ?? config.defaultImapSecure,
+      smtp_host: payload.smtpHost || base.smtp_host || config.defaultSmtpHost,
+      smtp_port: payload.smtpPort ?? base.smtp_port ?? config.defaultSmtpPort,
+      smtp_secure: payload.smtpSecure ?? base.smtp_secure ?? config.defaultSmtpSecure,
+      accounts: [...accounts, newAccount],
+    };
+    const enc = encrypt(JSON.stringify(next));
+    await updateAccountCreds(req.account.id, enc);
+    const responseAccounts = next.accounts.length
+      ? next.accounts.map((a, idx) => ({
+          id: a.id ?? String(idx),
+          label: a.label || a.username,
+          username: a.username,
+        }))
+      : [
+          {
+            id: "default",
+            label: next.username,
+            username: next.username,
+          },
+        ];
+    res.json({ ok: true, accounts: responseAccounts });
+  } catch (err) {
+    console.error("/auth/add-account - error:", err);
+    res.status(500).json({ error: "failed to add account", detail: err.message });
+  }
+});
+
+app.get("/auth/accounts", authMiddleware, (req, res) => {
+  try {
+    const base = credsFromAccount(req.account);
+    const accounts = Array.isArray(base.accounts) && base.accounts.length
+      ? base.accounts.map((a, idx) => ({
+          id: a.id ?? String(idx),
+          label: a.label || a.username,
+          username: a.username,
+        }))
+      : [
+          {
+            id: "default",
+            label: base.username,
+            username: base.username,
+          },
+        ];
+    res.json({ accounts });
+  } catch (err) {
+    res.status(500).json({ error: "failed to load accounts", detail: err.message });
+  }
+});
+
 app.get("/mail/folders", authMiddleware, async (req, res) => {
   try {
-    console.log("/mail/folders - account:", req.account?.id);
-    const folders = await listFolders(req.account);
+    const accountId = req.query.accountId || null;
+    console.log("/mail/folders - account:", req.account?.id, "sub:", accountId);
+    const folders = await listFolders(req.account, accountId);
     console.log("/mail/folders - success, found", folders.length, "folders");
     res.json({ folders });
   } catch (err) {
@@ -234,9 +338,10 @@ app.get("/mail/messages", authMiddleware, async (req, res) => {
   const folder = req.query.folder || "INBOX";
   const cursor = req.query.cursor ? Number(req.query.cursor) : null;
   const limit = req.query.limit ? Math.min(Number(req.query.limit), 50) : 20;
-  console.log("/mail/messages - folder:", folder, "cursor:", cursor, "limit:", limit);
+  const accountId = req.query.accountId || null;
+  console.log("/mail/messages - folder:", folder, "cursor:", cursor, "limit:", limit, "account:", accountId);
   try {
-    const { messages, nextCursor } = await listMessages(req.account, folder, cursor, limit);
+    const { messages, nextCursor } = await listMessages(req.account, folder, cursor, limit, accountId);
     console.log("/mail/messages - success, found", messages.length, "messages");
     res.json({ messages, nextCursor });
   } catch (err) {
@@ -247,12 +352,13 @@ app.get("/mail/messages", authMiddleware, async (req, res) => {
 
 app.get("/mail/messages/:uid", authMiddleware, async (req, res) => {
   const folder = req.query.folder || "INBOX";
+  const accountId = req.query.accountId || null;
   const uid = Number(req.params.uid);
   if (!uid) return res.status(400).json({ error: "invalid uid" });
 
   try {
-    console.log(`/mail/messages/${uid} - fetching from folder:`, folder);
-    const msg = await getMessage(req.account, folder, uid);
+    console.log(`/mail/messages/${uid} - fetching from folder:`, folder, "account:", accountId);
+    const msg = await getMessage(req.account, folder, uid, accountId);
     if (!msg) {
       console.log(`/mail/messages/${uid} - message not found`);
       return res.status(404).json({ error: "not found" });
@@ -318,13 +424,14 @@ app.get("/mail/messages/:uid", authMiddleware, async (req, res) => {
 
 app.get("/mail/attachments/:uid/:part", authMiddleware, async (req, res) => {
   const folder = req.query.folder || "INBOX";
+  const accountId = req.query.accountId || null;
   const uid = Number(req.params.uid);
   const { part } = req.params;
   if (!uid || !part) return res.status(400).json({ error: "invalid attachment request" });
 
   try {
     // First, get the message to find the attachment metadata (for filename)
-    const msg = await getMessage(req.account, folder, uid);
+    const msg = await getMessage(req.account, folder, uid, accountId);
     if (!msg) {
       return res.status(404).json({ error: "message not found" });
     }
@@ -334,7 +441,7 @@ app.get("/mail/attachments/:uid/:part", authMiddleware, async (req, res) => {
     const attachmentFilename = attachment?.filename;
     
     // Download the attachment content
-    const download = await downloadAttachment(req.account, folder, uid, part);
+    const download = await downloadAttachment(req.account, folder, uid, part, accountId);
     if (!download) {
       return res.status(404).json({ error: "attachment not found" });
     }
@@ -378,6 +485,7 @@ app.post("/mail/send", authMiddleware, sendLimiter, async (req, res) => {
     text: z.string().optional(),
     html: z.string().optional(),
     attachments: z.array(attachmentSchema).optional().default([]),
+    accountId: z.union([z.string(), z.number()]).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -408,16 +516,18 @@ app.post("/mail/send", authMiddleware, sendLimiter, async (req, res) => {
   };
 
   try {
+    const accountId = parsed.data.accountId || null;
     console.log("/mail/send - sending", {
       to: mailPayload.to,
       subject: mailPayload.subject,
       attachments: mailPayload.attachments?.length || 0,
+      account: accountId,
     });
-    const creds = credsFromAccount(req.account);
+    const creds = resolveSubAccountCreds(req.account, accountId);
     const { raw } = await sendMail(creds, mailPayload);
     console.log("/mail/send - sent via SMTP, appending to Sent...");
     try {
-      await appendToSent(req.account, raw);
+      await appendToSent(req.account, raw, accountId);
       console.log("/mail/send - appended to Sent");
     } catch (appendErr) {
       console.error("/mail/send - append to Sent failed:", appendErr.message);
@@ -436,12 +546,13 @@ app.post("/mail/flags", authMiddleware, async (req, res) => {
     folder: z.string().default("INBOX"),
     flags: z.array(z.string()).default(["\\Seen"]),
     mode: z.enum(["add", "remove"]).default("add"),
+    accountId: z.union([z.string(), z.number()]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
-  const { uid, folder, flags, mode } = parsed.data;
+  const { uid, folder, flags, mode, accountId } = parsed.data;
   try {
-    await setFlags(req.account, folder, uid, flags, mode);
+    await setFlags(req.account, folder, uid, flags, mode, accountId || null);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "failed to set flags", detail: err.message });
@@ -452,13 +563,14 @@ app.post("/mail/delete", authMiddleware, async (req, res) => {
   const schema = z.object({
     uid: z.number().int(),
     folder: z.string().default("INBOX"),
+    accountId: z.union([z.string(), z.number()]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
-  const { uid, folder } = parsed.data;
+  const { uid, folder, accountId } = parsed.data;
   try {
     // Find trash folder and decide whether to move or permanently delete
-    const folders = await listFolders(req.account);
+    const folders = await listFolders(req.account, accountId || null);
     const trashPath = findTrashFolderPath(folders);
     const inTrashAlready =
       isTrashLike(folder) ||
@@ -467,14 +579,14 @@ app.post("/mail/delete", authMiddleware, async (req, res) => {
     // Prefer moving to trash; if that fails, fall back to hard delete
     if (trashPath && !inTrashAlready) {
       try {
-        await moveMessage(req.account, folder, trashPath, uid);
+        await moveMessage(req.account, folder, trashPath, uid, accountId || null);
         return res.json({ ok: true, movedToTrash: true, trashFolder: trashPath });
       } catch (moveErr) {
         console.error("/mail/delete - move to trash failed, falling back to delete:", moveErr?.message, moveErr);
       }
     }
 
-    await deleteMessage(req.account, folder, uid);
+    await deleteMessage(req.account, folder, uid, accountId || null);
     res.json({ ok: true, deleted: true, permanentlyDeleted: true, fallbackToDelete: !!trashPath && !inTrashAlready });
   } catch (err) {
     console.error("/mail/delete - error:", err?.message, err);
@@ -487,12 +599,13 @@ app.post("/mail/move", authMiddleware, async (req, res) => {
     uid: z.number().int(),
     sourceFolder: z.string(),
     targetFolder: z.string(),
+    accountId: z.union([z.string(), z.number()]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
-  const { uid, sourceFolder, targetFolder } = parsed.data;
+  const { uid, sourceFolder, targetFolder, accountId } = parsed.data;
   try {
-    await moveMessage(req.account, sourceFolder, targetFolder, uid);
+    await moveMessage(req.account, sourceFolder, targetFolder, uid, accountId || null);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: "failed to move message", detail: err.message });
@@ -504,14 +617,15 @@ app.post("/mail/spam", authMiddleware, async (req, res) => {
     uid: z.number().int(),
     folder: z.string(),
     markAsSpam: z.boolean(),
+    accountId: z.union([z.string(), z.number()]).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
-  const { uid, folder, markAsSpam } = parsed.data;
+  const { uid, folder, markAsSpam, accountId } = parsed.data;
   
   try {
     // Get all folders to find spam folder
-    const folders = await listFolders(req.account);
+    const folders = await listFolders(req.account, accountId || null);
     const spamFolder = folders.find(f => 
       f.name.toLowerCase() === "spam" || 
       f.name.toLowerCase() === "junk" ||
@@ -525,10 +639,10 @@ app.post("/mail/spam", authMiddleware, async (req, res) => {
     
     if (markAsSpam) {
       // Move to spam folder
-      await moveMessage(req.account, folder, spamFolder.path, uid);
+      await moveMessage(req.account, folder, spamFolder.path, uid, accountId || null);
     } else {
       // Move from spam back to INBOX
-      await moveMessage(req.account, folder, "INBOX", uid);
+      await moveMessage(req.account, folder, "INBOX", uid, accountId || null);
     }
     
     res.json({ ok: true, spamFolder: spamFolder.path });

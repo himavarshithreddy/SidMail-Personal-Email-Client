@@ -4,10 +4,51 @@ export function TopBar({
   onSearch, 
   onLogout,
   userEmail = "",
+  onAddAccount,
+  accounts = [],
+  activeAccountId = null,
+  onAccountChange,
   searchQuery = "", 
   resultCount = 0,
   isSearching = false 
 }) {
+  const activeAccount = accounts.find((a) => String(a.id) === String(activeAccountId)) || accounts[0] || null;
+  const seen = new Set();
+  const uniqueAccounts = accounts.filter((acc) => {
+    const key = String(acc.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const getInitials = (text) => {
+    if (!text) return "A";
+    return text.trim().charAt(0).toUpperCase();
+  };
+
+  const renderAccountRow = (acc, isActive = false) => {
+    if (!acc) return null;
+    const primary = acc?.label || acc?.username || userEmail || "Account";
+    const secondary = acc?.username && acc.username !== primary ? acc.username : null;
+    return (
+      <div
+        className={`group w-full text-left px-3 py-2.5 text-base rounded-lg transition-colors flex items-center gap-3 ${
+          isActive ? "bg-muted text-foreground" : "text-foreground hover:bg-muted/70"
+        }`}
+      >
+        <div className="w-9 h-9 rounded-full bg-muted/70 text-sm font-semibold text-foreground/90 flex items-center justify-center uppercase ring-1 ring-border">
+          {getInitials(primary)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold truncate">{primary}</div>
+          {secondary && <div className="text-sm text-muted-foreground truncate">{secondary}</div>}
+        </div>
+        {isActive && (
+          <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_0_4px] shadow-green-500/20" />
+        )}
+      </div>
+    );
+  };
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const [searchFilter, setSearchFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -106,7 +147,7 @@ export function TopBar({
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center cursor-pointer ring-1 ring-border hover:ring-primary/50 transition-all"
+            className="w-10 h-10 rounded-full bg-muted flex items-center justify-center cursor-pointer ring-1 ring-border hover:ring-primary/50 transition-all shadow-sm hover:shadow-md"
             aria-label="User menu"
             aria-expanded={showProfileMenu}
           >
@@ -129,39 +170,65 @@ export function TopBar({
 
           {/* Profile Dropdown Menu */}
           {showProfileMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-lg overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="px-4 py-3 border-b border-border">
-                <p className="text-base font-medium text-foreground truncate">
-                  {userEmail || "User"}
-                </p>
-                <p className="text-base text-muted-foreground mt-0.5">
-                  Account
-                </p>
-              </div>
-              <div className="py-1">
+            <div className="absolute top-full right-0 mt-2 w-72 rounded-xl border border-border bg-card shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="px-4 py-3 space-y-3">
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Accounts
+                  </div>
+                  <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    {activeAccount && (
+                      <div className="cursor-default">{renderAccountRow(activeAccount, true)}</div>
+                    )}
+                    {uniqueAccounts
+                      .filter((acc) => String(acc.id) !== String(activeAccountId))
+                      .map((acc) => (
+                        <button
+                          key={acc.id}
+                          onClick={() => {
+                            onAccountChange?.(acc.id);
+                            setShowProfileMenu(false);
+                          }}
+                          className="w-full text-left cursor-pointer"
+                        >
+                          {renderAccountRow(acc, false)}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onAddAccount?.();
+                  }}
+                  className="w-full px-4 py-2.5 rounded-lg text-foreground hover:bg-muted transition-colors flex items-center gap-3 text-sm font-semibold cursor-pointer"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="shrink-0"
+                  >
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
+                  <span>Add account</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setShowProfileMenu(false);
                     onLogout();
                   }}
-                  className="w-full text-left px-4 py-2.5 text-base text-foreground hover:bg-muted transition-colors cursor-pointer flex items-center gap-2"
+                  className="w-full px-4 py-2.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors text-sm font-semibold cursor-pointer"
                 >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="24" 
-                    height="24" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    className="w-4 h-4 text-muted-foreground"
-                  >
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 17 21 12 16 7" />
-                    <line x1="21" x2="9" y1="12" y2="12" />
-                  </svg>
                   Logout
                 </button>
               </div>

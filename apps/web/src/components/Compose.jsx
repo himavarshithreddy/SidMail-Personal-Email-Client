@@ -347,8 +347,7 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
 
       {/* Form Content */}
       <div className="flex-1 overflow-y-auto">
-        <form className="h-full flex flex-col relative" onSubmit={handleSubmit}>
-          {sending && <div className="absolute inset-0 z-20 bg-background/40 cursor-not-allowed" aria-hidden="true" />}
+        <form className={`h-full flex flex-col relative ${sending ? 'cursor-not-allowed' : ''}`} onSubmit={handleSubmit}>
           <div className="flex-1 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-2">

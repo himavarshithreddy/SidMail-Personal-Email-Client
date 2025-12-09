@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { LoginForm } from "../../components/LoginForm";
 import { HelpModal } from "../../components/HelpModal";
@@ -9,18 +9,24 @@ import { SplashLoader } from "../../components/ui/SplashLoader";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const addMode = searchParams?.get("add") === "1";
   const { isAuthed, checking, login } = useAuth();
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
-    if (!checking && isAuthed) {
+    if (!checking && isAuthed && !addMode) {
       router.replace("/webmail");
     }
-  }, [checking, isAuthed, router]);
+  }, [checking, isAuthed, router, addMode]);
 
   const handleLogin = async (credentials) => {
     try {
-      await login(credentials);
+      if (addMode && isAuthed) {
+        await login(credentials, true); // in add mode, append account
+      } else {
+        await login(credentials);
+      }
       router.replace("/webmail");
     } catch (err) {
       throw err;
@@ -31,7 +37,7 @@ export default function LoginPage() {
     return <SplashLoader />;
   }
 
-  if (isAuthed) {
+  if (isAuthed && !addMode) {
     // Avoid flashing the login UI while redirecting authed users
     return <SplashLoader />;
   }

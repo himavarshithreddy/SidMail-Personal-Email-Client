@@ -14,22 +14,24 @@ export function useMail() {
     detail: false,
   });
 
-  const loadFolders = useCallback(async () => {
+  const loadFolders = useCallback(async (accountId = null) => {
     setLoading((prev) => ({ ...prev, folders: true }));
     try {
-      const data = await apiFetch("/mail/folders");
+      const qs = accountId ? `?accountId=${encodeURIComponent(accountId)}` : "";
+      const data = await apiFetch(`/mail/folders${qs}`);
       setFolders(data.folders || []);
     } finally {
       setLoading((prev) => ({ ...prev, folders: false }));
     }
   }, []);
 
-  const loadMessages = useCallback(async (folder, cursor = null, replace = false) => {
+  const loadMessages = useCallback(async (folder, cursor = null, replace = false, accountId = null) => {
     setLoading((prev) => ({ ...prev, messages: true }));
     try {
       const qs = new URLSearchParams({
         folder,
         ...(cursor ? { cursor } : {}),
+        ...(accountId ? { accountId } : {}),
       }).toString();
       const data = await apiFetch(`/mail/messages?${qs}`);
       setMessages((prev) => (replace ? data.messages : [...prev, ...data.messages]));
@@ -39,17 +41,17 @@ export function useMail() {
     }
   }, []);
 
-  const loadMessageDetail = useCallback(async (message, folder) => {
+  const loadMessageDetail = useCallback(async (message, folder, accountId = null) => {
     setSelectedMessage(message);
     setLoading((prev) => ({ ...prev, detail: true }));
     try {
-      const qs = new URLSearchParams({ folder }).toString();
+      const qs = new URLSearchParams({ folder, ...(accountId ? { accountId } : {}) }).toString();
       const data = await apiFetch(`/mail/messages/${message.uid}?${qs}`);
       setMessageDetail(data);
       
       // Mark as seen if not already
       if (!message.flags?.includes("\\Seen")) {
-        await markSeen(message, true, folder);
+        await markSeen(message, true, folder, accountId);
       }
     } catch (err) {
       // If message not found, remove it from the list
@@ -64,7 +66,7 @@ export function useMail() {
     }
   }, []);
 
-  const markSeen = useCallback(async (message, seen, folder) => {
+  const markSeen = useCallback(async (message, seen, folder, accountId = null) => {
     await apiFetch("/mail/flags", {
       method: "POST",
       body: JSON.stringify({
@@ -72,6 +74,7 @@ export function useMail() {
         folder,
         flags: ["\\Seen"],
         mode: seen ? "add" : "remove",
+        ...(accountId ? { accountId } : {}),
       }),
     });
     
@@ -103,7 +106,7 @@ export function useMail() {
     }
   }, [selectedMessage]);
 
-  const toggleFlag = useCallback(async (message, flag, enable, folder) => {
+  const toggleFlag = useCallback(async (message, flag, enable, folder, accountId = null) => {
     await apiFetch("/mail/flags", {
       method: "POST",
       body: JSON.stringify({
@@ -111,6 +114,7 @@ export function useMail() {
         folder,
         flags: [flag],
         mode: enable ? "add" : "remove",
+        ...(accountId ? { accountId } : {}),
       }),
     });
     
@@ -142,10 +146,10 @@ export function useMail() {
     }
   }, [selectedMessage]);
 
-  const deleteMessage = useCallback(async (message, folder) => {
+  const deleteMessage = useCallback(async (message, folder, accountId = null) => {
     const response = await apiFetch("/mail/delete", {
       method: "POST",
-      body: JSON.stringify({ uid: message.uid, folder }),
+      body: JSON.stringify({ uid: message.uid, folder, ...(accountId ? { accountId } : {}) }),
     });
     
     setMessages((prev) => prev.filter((m) => m.uid !== message.uid));
@@ -158,13 +162,14 @@ export function useMail() {
     return response;
   }, [selectedMessage]);
 
-  const markAsSpam = useCallback(async (message, folder, isSpam) => {
+  const markAsSpam = useCallback(async (message, folder, isSpam, accountId = null) => {
     await apiFetch("/mail/spam", {
       method: "POST",
       body: JSON.stringify({ 
         uid: message.uid, 
         folder,
         markAsSpam: isSpam,
+        ...(accountId ? { accountId } : {}),
       }),
     });
     
@@ -177,10 +182,10 @@ export function useMail() {
     }
   }, [selectedMessage]);
 
-  const moveMessage = useCallback(async (message, sourceFolder, targetFolder) => {
+  const moveMessage = useCallback(async (message, sourceFolder, targetFolder, accountId = null) => {
     await apiFetch("/mail/move", {
       method: "POST",
-      body: JSON.stringify({ uid: message.uid, sourceFolder, targetFolder }),
+      body: JSON.stringify({ uid: message.uid, sourceFolder, targetFolder, ...(accountId ? { accountId } : {}) }),
     });
 
     // Remove from current list since it moved
@@ -206,6 +211,14 @@ export function useMail() {
     setMessageDetail(null);
   }, []);
 
+  const resetMailState = useCallback((folder = "INBOX") => {
+    setSelectedFolder(folder);
+    setMessages([]);
+    setSelectedMessage(null);
+    setMessageDetail(null);
+    setNextCursor(null);
+  }, []);
+
   return {
     folders,
     messages,
@@ -224,6 +237,7 @@ export function useMail() {
     moveMessage,
     sendMail,
     selectFolder,
+    resetMailState,
   };
 }
 

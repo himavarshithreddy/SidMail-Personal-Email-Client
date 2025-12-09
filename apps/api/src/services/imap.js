@@ -11,14 +11,44 @@ function credsFromAccount(account) {
   return plain;
 }
 
-async function getClient(account) {
-  if (connections.has(account.id)) {
-    const record = connections.get(account.id);
+function resolveSubAccountCreds(account, accountId) {
+  const base = credsFromAccount(account);
+  const accounts = Array.isArray(base.accounts) ? base.accounts : [];
+  const match =
+    accounts.find((a) => String(a.id) === String(accountId)) ||
+    accounts.find((a) => a.username === accountId) ||
+    accounts[0] ||
+    null;
+
+  const username = match?.username || base.username;
+  const password = match?.password || base.password;
+  const label = match?.label || username;
+  const subId = match?.id ?? accountId ?? "default";
+
+  return {
+    imap_host: base.imap_host,
+    imap_port: base.imap_port,
+    imap_secure: base.imap_secure,
+    smtp_host: base.smtp_host,
+    smtp_port: base.smtp_port,
+    smtp_secure: base.smtp_secure,
+    username,
+    password,
+    label,
+    subId,
+  };
+}
+
+async function getClient(account, accountId) {
+  const creds = resolveSubAccountCreds(account, accountId);
+  const key = `${account.id}:${creds.subId}`;
+
+  if (connections.has(key)) {
+    const record = connections.get(key);
     record.lastUsed = Date.now();
     return record.client;
   }
 
-  const creds = credsFromAccount(account);
   const client = new ImapFlow({
     host: creds.imap_host,
     port: creds.imap_port,
@@ -33,16 +63,16 @@ async function getClient(account) {
   });
 
   await client.connect();
-  connections.set(account.id, { client, lastUsed: Date.now() });
+  connections.set(key, { client, lastUsed: Date.now() });
 
   client.on("close", () => {
-    console.log("IMAP connection closed for account:", account.id);
-    connections.delete(account.id);
+    console.log("IMAP connection closed for account:", key);
+    connections.delete(key);
   });
 
   client.on("error", (err) => {
-    console.error("IMAP connection error for account:", account.id, err.message);
-    connections.delete(account.id);
+    console.error("IMAP connection error for account:", key, err.message);
+    connections.delete(key);
   });
 
   return client;
@@ -81,8 +111,8 @@ async function openMailbox(client, mailbox) {
   await client.mailboxOpen(target);
 }
 
-async function listFolders(account) {
-  const client = await getClient(account);
+async function listFolders(account, accountId) {
+  const client = await getClient(account, accountId);
   const list = await client.list();
   const folders = list.map(box => ({
     path: box.path,
@@ -115,8 +145,8 @@ async function findSentFolder(client) {
   return "Sent";
 }
 
-async function listMessages(account, mailbox, cursorUid, limit = 20) {
-  const client = await getClient(account);
+async function listMessages(account, mailbox, cursorUid, limit = 20, accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, mailbox);
 
   // Get all UIDs using SEARCH (this returns only existing UIDs)
@@ -254,8 +284,8 @@ function collectAttachments(structure, out = [], parentIsMultipart = false) {
   return out;
 }
 
-async function getMessage(account, mailbox, uid) {
-  const client = await getClient(account);
+async function getMessage(account, mailbox, uid, accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, mailbox);
   
   try {
@@ -299,8 +329,8 @@ async function getMessage(account, mailbox, uid) {
   }
 }
 
-async function downloadAttachment(account, mailbox, uid, part) {
-  const client = await getClient(account);
+async function downloadAttachment(account, mailbox, uid, part, accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, mailbox);
   
   try {
@@ -318,8 +348,8 @@ async function downloadAttachment(account, mailbox, uid, part) {
   }
 }
 
-async function setFlags(account, mailbox, uid, flags = [], mode = "add") {
-  const client = await getClient(account);
+async function setFlags(account, mailbox, uid, flags = [], mode = "add", accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, mailbox);
   
   try {
@@ -340,8 +370,8 @@ async function setFlags(account, mailbox, uid, flags = [], mode = "add") {
   }
 }
 
-async function deleteMessage(account, mailbox, uid) {
-  const client = await getClient(account);
+async function deleteMessage(account, mailbox, uid, accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, mailbox);
   
   try {
@@ -358,8 +388,8 @@ async function deleteMessage(account, mailbox, uid) {
   }
 }
 
-async function moveMessage(account, sourceMailbox, targetMailbox, uid) {
-  const client = await getClient(account);
+async function moveMessage(account, sourceMailbox, targetMailbox, uid, accountId) {
+  const client = await getClient(account, accountId);
   await openMailbox(client, sourceMailbox);
   
   try {
@@ -376,13 +406,13 @@ async function moveMessage(account, sourceMailbox, targetMailbox, uid) {
   }
 }
 
-async function appendToSent(account, rawMessage) {
+async function appendToSent(account, rawMessage, accountId) {
   if (!rawMessage) {
     console.warn("appendToSent - no raw message provided, skipping");
     return;
   }
 
-  const client = await getClient(account);
+  const client = await getClient(account, accountId);
   const primarySent = await findSentFolder(client);
 
   // Try several common Sent paths to maximize compatibility
@@ -488,5 +518,6 @@ module.exports = {
   credsFromAccount,
   closeConnection,
   appendToSent,
+  resolveSubAccountCreds,
 };
 

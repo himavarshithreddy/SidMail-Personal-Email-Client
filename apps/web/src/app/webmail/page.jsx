@@ -20,7 +20,7 @@ export default function WebmailPage() {
   const searchParams = useSearchParams();
   const lastSyncedParams = useRef(searchParams.toString());
   const suppressUrlApplyRef = useRef(false);
-  const { isAuthed, checking, userEmail, logout } = useAuth();
+  const { isAuthed, checking, userEmail, accounts, activeAccountId, changeActiveAccount, logout, loadAccounts } = useAuth();
   const {
     folders,
     messages,
@@ -39,6 +39,7 @@ export default function WebmailPage() {
     moveMessage,
     sendMail,
     selectFolder,
+    resetMailState,
   } = useMail();
 
   const [composeOpen, setComposeOpen] = useState(false);
@@ -52,6 +53,7 @@ export default function WebmailPage() {
   const [searchFilter, setSearchFilter] = useState("all");
   const [selectedEmails, setSelectedEmails] = useState(new Set());
   const recentlyRemovedUids = useRef(new Set());
+  const [activeAccount, setActiveAccount] = useState(null);
 
   const trackRemovedUid = (uid) => {
     if (!uid && uid !== 0) return;
@@ -66,6 +68,15 @@ export default function WebmailPage() {
       router.replace("/login");
     }
   }, [checking, isAuthed, router]);
+
+  useEffect(() => {
+    if (!isAuthed || checking) return;
+    const current =
+      accounts.find((a) => String(a.id) === String(activeAccountId)) ||
+      accounts[0] ||
+      null;
+    setActiveAccount(current);
+  }, [accounts, activeAccountId, isAuthed, checking]);
 
   // Keep URL in sync with current UI state
   useEffect(() => {
@@ -339,7 +350,7 @@ export default function WebmailPage() {
       // Delete each selected message
       const deletePromises = Array.from(selectedEmails).map(uid => {
         const msg = messages.find(m => m.uid === uid);
-        return msg ? deleteMessage(msg, selectedFolder) : Promise.resolve(null);
+        return msg ? deleteMessage(msg, selectedFolder, activeAccountId) : Promise.resolve(null);
       });
       const results = await Promise.all(deletePromises);
 
@@ -366,7 +377,7 @@ export default function WebmailPage() {
     try {
       const markPromises = Array.from(selectedEmails).map(uid => {
         const msg = messages.find(m => m.uid === uid);
-        return msg ? markSeen(msg, true, selectedFolder) : Promise.resolve();
+        return msg ? markSeen(msg, true, selectedFolder, activeAccountId) : Promise.resolve();
       });
       await Promise.all(markPromises);
       showToast(`Marked ${selectedEmails.size} message(s) as read`);
@@ -381,7 +392,7 @@ export default function WebmailPage() {
     try {
       const markPromises = Array.from(selectedEmails).map(uid => {
         const msg = messages.find(m => m.uid === uid);
-        return msg ? markSeen(msg, false, selectedFolder) : Promise.resolve();
+        return msg ? markSeen(msg, false, selectedFolder, activeAccountId) : Promise.resolve();
       });
       await Promise.all(markPromises);
       showToast(`Marked ${selectedEmails.size} message(s) as unread`);
@@ -396,7 +407,7 @@ export default function WebmailPage() {
     try {
       const movePromises = Array.from(selectedEmails).map(uid => {
         const msg = messages.find(m => m.uid === uid);
-        return msg ? markAsSpam(msg, selectedFolder, false) : Promise.resolve();
+        return msg ? markAsSpam(msg, selectedFolder, false, activeAccountId) : Promise.resolve();
       });
       await Promise.all(movePromises);
       selectedEmails.forEach((uid) => trackRemovedUid(uid));
@@ -412,7 +423,7 @@ export default function WebmailPage() {
     try {
       const movePromises = Array.from(selectedEmails).map(uid => {
         const msg = messages.find(m => m.uid === uid);
-        return msg ? moveMessage(msg, selectedFolder, "INBOX") : Promise.resolve();
+        return msg ? moveMessage(msg, selectedFolder, "INBOX", activeAccountId) : Promise.resolve();
       });
       await Promise.all(movePromises);
       selectedEmails.forEach((uid) => trackRemovedUid(uid));
@@ -426,19 +437,19 @@ export default function WebmailPage() {
   // Load folders only once when authenticated
   useEffect(() => {
     if (isAuthed) {
-      loadFolders().catch(handleError);
+      loadFolders(activeAccountId).catch(handleError);
     }
-  }, [isAuthed]);
+  }, [isAuthed, activeAccountId, loadFolders]);
 
   // Load messages when folder changes
   useEffect(() => {
     if (isAuthed) {
-      loadMessages(selectedFolder, null, true).catch(handleError);
+      loadMessages(selectedFolder, null, true, activeAccountId).catch(handleError);
       // Clear selections when changing folders
       setSelectedEmails(new Set());
       setSearchQuery("");
     }
-  }, [isAuthed, selectedFolder]);
+  }, [isAuthed, selectedFolder, activeAccountId, loadMessages]);
 
   const handleLogout = async () => {
     try {
@@ -454,6 +465,26 @@ export default function WebmailPage() {
     setLogoutConfirmOpen(true);
   };
 
+  const handleAddAccount = async () => {
+    // Simple flow: send user to login to add another account, then reload accounts on return
+    router.push("/login?add=1");
+  };
+
+  const handleAccountChange = async (accountId) => {
+    changeActiveAccount(accountId);
+    suppressUrlApplyRef.current = true;
+    resetMailState("INBOX");
+    try {
+      await loadFolders(accountId);
+      await loadMessages("INBOX", null, true, accountId);
+      setSelectedEmails(new Set());
+      setComposeOpen(false);
+      setComposeInitialData(null);
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
   const handleSelectFolder = (folder) => {
     // Clear compose/detail state before switching
     setComposeOpen(false);
@@ -466,12 +497,12 @@ export default function WebmailPage() {
   };
 
   const handleRefreshMessages = () => {
-    loadMessages(selectedFolder, null, true).catch(handleError);
+    loadMessages(selectedFolder, null, true, activeAccountId).catch(handleError);
   };
 
   const handleLoadMore = () => {
     if (nextCursor) {
-      loadMessages(selectedFolder, nextCursor, false).catch(handleError);
+      loadMessages(selectedFolder, nextCursor, false, activeAccountId).catch(handleError);
     }
   };
 
@@ -481,7 +512,7 @@ export default function WebmailPage() {
       setComposeOpen(false);
       setComposeInitialData(null);
     }
-    loadMessageDetail(message, selectedFolder)
+    loadMessageDetail(message, selectedFolder, activeAccountId)
       .catch((err) => {
         if (err.message && err.message.includes("not found")) {
           showToast("Message not found. It may have been deleted.");
@@ -501,7 +532,7 @@ export default function WebmailPage() {
     if (!selectedMessage) return;
     try {
       const isFlagged = (selectedMessage.flags || []).includes("\\Flagged");
-      await toggleFlag(selectedMessage, "\\Flagged", !isFlagged, selectedFolder);
+      await toggleFlag(selectedMessage, "\\Flagged", !isFlagged, selectedFolder, activeAccountId);
       showToast(isFlagged ? "Unstarred" : "Starred");
     } catch (err) {
       handleError(err);
@@ -511,7 +542,7 @@ export default function WebmailPage() {
   const handleMarkUnread = async () => {
     if (!selectedMessage) return;
     try {
-      await markSeen(selectedMessage, false, selectedFolder);
+      await markSeen(selectedMessage, false, selectedFolder, activeAccountId);
       showToast("Marked as unread");
     } catch (err) {
       handleError(err);
@@ -521,7 +552,7 @@ export default function WebmailPage() {
   const handleDelete = async () => {
     if (!selectedMessage) return;
     try {
-      const result = await deleteMessage(selectedMessage, selectedFolder);
+      const result = await deleteMessage(selectedMessage, selectedFolder, activeAccountId);
       trackRemovedUid(selectedMessage.uid);
       if (result?.movedToTrash) {
         showToast("Moved to trash");
@@ -536,7 +567,7 @@ export default function WebmailPage() {
   const handleMarkAsSpam = async () => {
     if (!selectedMessage) return;
     try {
-      await markAsSpam(selectedMessage, selectedFolder, true);
+      await markAsSpam(selectedMessage, selectedFolder, true, activeAccountId);
       trackRemovedUid(selectedMessage.uid);
       showToast("Message marked as spam");
     } catch (err) {
@@ -547,7 +578,7 @@ export default function WebmailPage() {
   const handleUnmarkSpam = async () => {
     if (!selectedMessage) return;
     try {
-      await markAsSpam(selectedMessage, selectedFolder, false);
+      await markAsSpam(selectedMessage, selectedFolder, false, activeAccountId);
       trackRemovedUid(selectedMessage.uid);
       showToast("Message moved to inbox");
     } catch (err) {
@@ -558,7 +589,7 @@ export default function WebmailPage() {
   const handleRestoreFromTrash = async () => {
     if (!selectedMessage) return;
     try {
-      await moveMessage(selectedMessage, selectedFolder, "INBOX");
+      await moveMessage(selectedMessage, selectedFolder, "INBOX", activeAccountId);
       trackRemovedUid(selectedMessage.uid);
       showToast("Message moved to inbox");
     } catch (err) {
@@ -591,7 +622,7 @@ export default function WebmailPage() {
 
   const handleSendMail = async (mailData) => {
     try {
-      await sendMail(mailData);
+      await sendMail({ ...mailData, accountId: activeAccountId || null });
       showToast("Message sent");
       setComposeInitialData(null);
       setComposeOpen(false);
@@ -601,7 +632,7 @@ export default function WebmailPage() {
       }
       // Refresh messages after sending
       setTimeout(() => {
-        loadMessages(selectedFolder, null, true).catch(handleError);
+        loadMessages(selectedFolder, null, true, activeAccountId).catch(handleError);
       }, 1000);
     } catch (err) {
       throw err;
@@ -622,7 +653,11 @@ export default function WebmailPage() {
       <TopBar
         onSearch={handleSearch}
         onLogout={handleLogoutClick}
+        onAddAccount={handleAddAccount}
         userEmail={userEmail}
+        accounts={accounts}
+        activeAccountId={activeAccountId}
+        onAccountChange={handleAccountChange}
         searchQuery={searchQuery}
         resultCount={filteredMessages.length}
         isSearching={!!searchQuery}
@@ -699,8 +734,8 @@ export default function WebmailPage() {
             onUnmarkSpam={handleUnmarkSpam}
             onRestoreFromTrash={handleRestoreFromTrash}
             onDelete={handleDelete}
-          defaultFrom={userEmail}
-          defaultFromName={(userEmail || "").split("@")[0] || ""}
+          defaultFrom={activeAccount?.username || userEmail}
+          defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
           />
         </div>
 
