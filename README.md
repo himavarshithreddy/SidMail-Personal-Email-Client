@@ -59,6 +59,7 @@ A modern webmail interface that connects to any IMAP/SMTP server. Supports multi
 - Database is in `apps/api/data/app.db`
 - Delete the file to reset (loses all accounts)
 
----
+## License
 
+MIT License - See [LICENSE](LICENSE) file for details.
 
