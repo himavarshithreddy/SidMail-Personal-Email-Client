@@ -16,7 +16,10 @@ export function DetailView({
   onMarkUnread,
   onMarkAsSpam,
   onUnmarkSpam,
+  onRestoreFromTrash,
   onDelete,
+  defaultFrom,
+  defaultFromName,
 }) {
   return (
     <div className="flex-1 flex flex-col bg-background h-full overflow-hidden">
@@ -25,6 +28,8 @@ export function DetailView({
           onClose={onCloseCompose}
           onSend={onSendMail}
           initialData={composeInitialData}
+          defaultFrom={defaultFrom}
+          defaultFromName={defaultFromName}
         />
       ) : (
         <MessageDetail
@@ -38,6 +43,7 @@ export function DetailView({
           onMarkUnread={onMarkUnread}
           onMarkAsSpam={onMarkAsSpam}
           onUnmarkSpam={onUnmarkSpam}
+          onRestoreFromTrash={onRestoreFromTrash}
           onDelete={onDelete}
         />
       )}

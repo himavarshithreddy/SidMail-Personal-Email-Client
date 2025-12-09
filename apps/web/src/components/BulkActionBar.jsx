@@ -4,6 +4,7 @@ export function BulkActionBar({
   onMarkRead, 
   onMarkUnread,
   onRemoveFromSpam,
+  onRestoreFromTrash,
   selectedFolder,
   onClearSelection 
 }) {
@@ -13,6 +14,11 @@ export function BulkActionBar({
   const isSpamFolder = selectedFolder && (
     selectedFolder.toLowerCase().includes("spam") ||
     selectedFolder.toLowerCase().includes("junk")
+  );
+  const isTrashFolder = selectedFolder && (
+    selectedFolder.toLowerCase().includes("trash") ||
+    selectedFolder.toLowerCase().includes("bin") ||
+    selectedFolder.toLowerCase().includes("deleted")
   );
 
   return (
@@ -31,6 +37,15 @@ export function BulkActionBar({
                 title="Remove from spam (move to inbox)"
               >
                 Remove from spam
+              </button>
+            ) : null}
+            {isTrashFolder && onRestoreFromTrash ? (
+              <button
+                onClick={onRestoreFromTrash}
+                className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-foreground bg-transparent hover:bg-muted rounded-md border border-border hover:border-border transition-colors cursor-pointer whitespace-nowrap"
+                title="Move to inbox"
+              >
+                Move to inbox
               </button>
             ) : null}
             <button

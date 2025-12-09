@@ -15,6 +15,7 @@ export function MessageDetail({
   onMarkUnread,
   onMarkAsSpam,
   onUnmarkSpam,
+  onRestoreFromTrash,
   onDelete,
 }) {
   if (loading) {
@@ -52,6 +53,12 @@ export function MessageDetail({
   const isSpamFolder = selectedFolder && (
     selectedFolder.toLowerCase().includes("spam") ||
     selectedFolder.toLowerCase().includes("junk")
+  );
+  // Check if current folder is trash/bin
+  const isTrashFolder = selectedFolder && (
+    selectedFolder.toLowerCase().includes("trash") ||
+    selectedFolder.toLowerCase().includes("bin") ||
+    selectedFolder.toLowerCase().includes("deleted")
   );
 
   const handlePrint = () => {
@@ -259,6 +266,19 @@ export function MessageDetail({
               </svg>
             </button>
           )}
+        {isTrashFolder && (
+          <button
+            className="p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
+            onClick={onRestoreFromTrash}
+            aria-label="Move to inbox"
+            title="Move to inbox"
+          >
+            <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5 5 12l7 7" />
+            </svg>
+          </button>
+        )}
           <button
             className="p-1.5 rounded-md hover:bg-muted hover:text-destructive transition-colors cursor-pointer"
             onClick={onDelete}
@@ -277,12 +297,12 @@ export function MessageDetail({
         <div className="p-6 space-y-6">
           {/* Message Header */}
           <div className="space-y-4">
-            <h1 className="text-2xl font-semibold text-foreground break-words capitalize">
+            <h1 className="text-2xl font-semibold text-foreground wrap-break-word capitalize">
                 {detail.message.subject || "(No subject)"}
               </h1>
 
                 <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 flex items-center justify-center text-foreground font-semibold">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-linear-to-br from-primary/40 to-accent/40 flex items-center justify-center text-foreground font-semibold">
                     {(detail.message.from[0]?.name || detail.message.from[0]?.address || "?").charAt(0).toUpperCase()}
                   </div>
               <div className="flex-1 min-w-0">
@@ -303,14 +323,14 @@ export function MessageDetail({
                 <div className="mt-3 space-y-1 text-base">
                   <div className="flex gap-2">
                     <span className="text-muted-foreground w-8">To:</span>
-                    <span className="text-foreground/80 break-words">
+                    <span className="text-foreground/80 wrap-break-word">
                       {detail.message.to.map((f) => f.address || f.name).join(", ")}
                     </span>
                   </div>
                   {detail.message.cc && detail.message.cc.length > 0 && (
                     <div className="flex gap-2">
                       <span className="text-muted-foreground w-8">CC:</span>
-                      <span className="text-foreground/80 break-words">
+                      <span className="text-foreground/80 wrap-break-word">
                         {detail.message.cc.map((f) => f.address || f.name).join(", ")}
                       </span>
                     </div>
@@ -321,11 +341,8 @@ export function MessageDetail({
           </div>
 
           {/* Message Body */}
-        <div
-          className="prose prose-invert prose-sm max-w-none text-foreground/90 leading-relaxed"
-          style={{
-            wordBreak: "break-word"
-          }}
+        <div className="prose prose-invert prose-sm text-foreground/90 leading-relaxed max-w-3xl mx-auto"
+          style={{ wordBreak: "break-word" }}
           dangerouslySetInnerHTML={{
             __html: sanitizeHTMLLength(
               detail.message.html || detail.message.text?.replace(/\n/g, "<br>") || "",

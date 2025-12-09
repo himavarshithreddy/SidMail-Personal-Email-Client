@@ -21,11 +21,57 @@ const {
   verifyImap,
   credsFromAccount,
   closeConnection,
+  appendToSent,
 } = require("./services/imap");
 const { verifySmtp, sendMail } = require("./services/smtp");
 const { parseMessage } = require("./utils/messageParser");
 
 const app = express();
+
+// Utility helpers
+const isTrashLike = (value = "") => {
+  const v = value.toLowerCase();
+  return (
+    v.includes("trash") ||
+    v.includes("bin") ||
+    v.includes("deleted items") ||
+    v.includes("deleted messages")
+  );
+};
+
+const findTrashFolderPath = (folders = []) => {
+  const normalized = Array.isArray(folders)
+    ? folders.map((f) => {
+        const flagsArray = Array.isArray(f?.flags)
+          ? f.flags
+          : f?.flags && typeof f.flags[Symbol.iterator] === "function"
+          ? Array.from(f.flags)
+          : [];
+        return {
+          ...f,
+          lowerName: (f?.name || "").toLowerCase(),
+          lowerPath: (f?.path || "").toLowerCase(),
+          flagSet: new Set(flagsArray.map((flag) => String(flag).toLowerCase())),
+        };
+      })
+    : [];
+
+  // Prefer explicit IMAP \Trash flag
+  const flagMatch = normalized.find((f) => f.flagSet.has("\\trash"));
+  if (flagMatch) return flagMatch.path;
+
+  // Then well-known names
+  const nameMatch = normalized.find((f) =>
+    ["trash", "deleted items", "deleted messages", "bin"].includes(f.lowerName)
+  );
+  if (nameMatch) return nameMatch.path;
+
+  // Finally, look for trash-like paths
+  const pathMatch = normalized.find((f) => isTrashLike(f.lowerPath));
+  if (pathMatch) return pathMatch.path;
+
+  return null;
+};
 
 app.use(
   cors({
@@ -34,7 +80,8 @@ app.use(
   })
 );
 app.use(helmet());
-app.use(express.json({ limit: "2mb" }));
+// Increase JSON limit to allow small attachments (base64-encoded)
+app.use(express.json({ limit: "25mb" }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
@@ -313,27 +360,69 @@ app.get("/mail/attachments/:uid/:part", authMiddleware, async (req, res) => {
 });
 
 app.post("/mail/send", authMiddleware, sendLimiter, async (req, res) => {
-  console.log("/mail/send - request body:", req.body);
+  const attachmentSchema = z.object({
+    filename: z.string().min(1),
+    content: z.string().min(1),
+    contentType: z.string().optional(),
+    encoding: z.enum(["base64", "utf8"]).optional(),
+    size: z.number().nonnegative().optional(),
+  });
+
   const schema = z.object({
+    from: z.string().optional(),
+    fromName: z.string().optional(),
     to: z.string(),
     cc: z.string().optional(),
     bcc: z.string().optional(),
     subject: z.string().optional(),
     text: z.string().optional(),
     html: z.string().optional(),
+    attachments: z.array(attachmentSchema).optional().default([]),
   });
+
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
     console.log("/mail/send - validation failed:", parsed.error.issues);
     return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
   }
 
+  const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // ~25MB total
+  const totalSizeBytes = parsed.data.attachments.reduce((sum, att) => {
+    if (typeof att.size === "number") return sum + att.size;
+    // Estimate base64 payload size if size not provided
+    return sum + Math.ceil((att.content.length * 3) / 4);
+  }, 0);
+
+  if (totalSizeBytes > MAX_ATTACHMENT_BYTES) {
+    return res.status(413).json({ error: "attachments too large", detail: "Total attachment size exceeds 25MB" });
+  }
+
+  const mailPayload = {
+    ...parsed.data,
+    attachments: parsed.data.attachments.map((att) => ({
+      filename: att.filename,
+      content: att.content,
+      contentType: att.contentType,
+      encoding: att.encoding || "base64",
+    })),
+  };
+
   try {
-    console.log("/mail/send - getting creds from account:", req.account?.id);
+    console.log("/mail/send - sending", {
+      to: mailPayload.to,
+      subject: mailPayload.subject,
+      attachments: mailPayload.attachments?.length || 0,
+    });
     const creds = credsFromAccount(req.account);
-    console.log("/mail/send - creds obtained, sending mail...");
-    await sendMail(creds, parsed.data);
-    console.log("/mail/send - success");
+    const { raw } = await sendMail(creds, mailPayload);
+    console.log("/mail/send - sent via SMTP, appending to Sent...");
+    try {
+      await appendToSent(req.account, raw);
+      console.log("/mail/send - appended to Sent");
+    } catch (appendErr) {
+      console.error("/mail/send - append to Sent failed:", appendErr.message);
+      // Do not fail the API if append fails; some providers auto-save sent items
+    }
   } catch (err) {
     console.error("/mail/send - error:", err);
     return res.status(500).json({ error: "failed to send mail", detail: err.message });
@@ -368,9 +457,27 @@ app.post("/mail/delete", authMiddleware, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "invalid input", details: parsed.error.issues });
   const { uid, folder } = parsed.data;
   try {
+    // Find trash folder and decide whether to move or permanently delete
+    const folders = await listFolders(req.account);
+    const trashPath = findTrashFolderPath(folders);
+    const inTrashAlready =
+      isTrashLike(folder) ||
+      (trashPath && folder.toLowerCase() === trashPath.toLowerCase());
+
+    // Prefer moving to trash; if that fails, fall back to hard delete
+    if (trashPath && !inTrashAlready) {
+      try {
+        await moveMessage(req.account, folder, trashPath, uid);
+        return res.json({ ok: true, movedToTrash: true, trashFolder: trashPath });
+      } catch (moveErr) {
+        console.error("/mail/delete - move to trash failed, falling back to delete:", moveErr?.message, moveErr);
+      }
+    }
+
     await deleteMessage(req.account, folder, uid);
-    res.json({ ok: true });
+    res.json({ ok: true, deleted: true, permanentlyDeleted: true, fallbackToDelete: !!trashPath && !inTrashAlready });
   } catch (err) {
+    console.error("/mail/delete - error:", err?.message, err);
     res.status(500).json({ error: "failed to delete message", detail: err.message });
   }
 });

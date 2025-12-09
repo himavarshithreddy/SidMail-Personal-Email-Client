@@ -3,7 +3,7 @@ export function SplashLoader() {
     <div className="fixed inset-0 bg-background flex items-center justify-center">
       <div className="flex flex-col items-center">
         {/* Logo */}
-        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+        <div className="w-16 h-16 rounded-xl bg-linear-to-br from-primary to-accent flex items-center justify-center">
           <span className="text-primary-foreground font-bold text-2xl">S</span>
         </div>
 
@@ -40,11 +40,11 @@ export function SplashLoader() {
         {/* Futuristic Progress Bar */}
         <div className="w-72 h-1.5 bg-muted/30 rounded-full overflow-hidden relative mt-16">
           <div 
-            className="h-full bg-gradient-to-r from-primary via-accent to-primary rounded-full animate-loading-bar relative"
+            className="h-full bg-linear-to-r from-primary via-accent to-primary rounded-full animate-loading-bar relative"
             style={{ width: "40%" }}
           >
             {/* Shimmer effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
           </div>
         </div>
       </div>

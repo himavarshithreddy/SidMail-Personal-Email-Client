@@ -93,6 +93,28 @@ async function listFolders(account) {
   return folders;
 }
 
+async function findSentFolder(client) {
+  const list = await client.list();
+  const candidates = list.map((box) => ({
+    path: box.path,
+    name: box.name?.toLowerCase() || "",
+    flags: Array.from(box.flags || []),
+  }));
+
+  const flagMatch = candidates.find((box) =>
+    box.flags.some((f) => String(f).toLowerCase() === "\\sent")
+  );
+  if (flagMatch) return flagMatch.path;
+
+  const nameMatch = candidates.find((box) => ["sent", "sent items", "sent mail"].includes(box.name));
+  if (nameMatch) return nameMatch.path;
+
+  const gmailMatch = candidates.find((box) => box.path?.toLowerCase().includes("sent"));
+  if (gmailMatch) return gmailMatch.path;
+
+  return "Sent";
+}
+
 async function listMessages(account, mailbox, cursorUid, limit = 20) {
   const client = await getClient(account);
   await openMailbox(client, mailbox);
@@ -354,6 +376,69 @@ async function moveMessage(account, sourceMailbox, targetMailbox, uid) {
   }
 }
 
+async function appendToSent(account, rawMessage) {
+  if (!rawMessage) {
+    console.warn("appendToSent - no raw message provided, skipping");
+    return;
+  }
+
+  const client = await getClient(account);
+  const primarySent = await findSentFolder(client);
+
+  // Try several common Sent paths to maximize compatibility
+  const candidates = [
+    primarySent,
+    "Sent",
+    "Sent Items",
+    "Sent Mail",
+    "INBOX.Sent",
+    "INBOX/Sent",
+  ].filter(Boolean);
+
+  let lastErr = null;
+
+  for (const folder of candidates) {
+    try {
+      const folders = await client.list();
+      const hasFolder = folders.some((f) => f.path.toLowerCase() === folder.toLowerCase());
+      if (!hasFolder) {
+        console.warn("appendToSent - folder missing, skipping creation per policy:", folder);
+        continue; // do not create new folders
+      }
+
+      await openMailbox(client, folder);
+      try {
+        await client.append(folder, rawMessage, { flags: ["\\Seen"] });
+        console.log("appendToSent - appended to", folder, "with \\Seen");
+        return; // success
+      } catch (appendErr) {
+        const msg = appendErr.message || "";
+        const resp = appendErr.responseText || "";
+        console.warn("appendToSent - append with \\Seen failed:", msg, "resp:", resp, "folder:", folder);
+
+        // Retry without flags if server rejects the flags format
+        try {
+          await client.append(folder, rawMessage);
+          console.log("appendToSent - appended to", folder, "without flags");
+          return;
+        } catch (retryErr) {
+          console.error("appendToSent - retry without flags failed:", retryErr.message, "resp:", retryErr.responseText, "folder:", folder);
+          lastErr = retryErr;
+          continue; // try next folder
+        }
+      }
+    } catch (err) {
+      console.error("appendToSent - failed:", err.message, "folder:", folder, "command:", err.command, "resp:", err.responseText);
+      lastErr = err;
+      continue;
+    }
+  }
+
+  if (lastErr) {
+    throw lastErr;
+  }
+}
+
 async function verifyImap(creds) {
   console.log("verifyImap - creating client with:", { host: creds.imap_host, port: creds.imap_port, secure: creds.imap_secure, user: creds.username });
   const client = new ImapFlow({
@@ -386,5 +471,6 @@ module.exports = {
   verifyImap,
   credsFromAccount,
   closeConnection,
+  appendToSent,
 };
 

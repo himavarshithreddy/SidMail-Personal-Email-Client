@@ -44,12 +44,14 @@ export const MessageList = memo(function MessageList({
   onBulkMarkRead,
   onBulkMarkUnread,
   onBulkRemoveFromSpam,
+  onBulkRestoreFromTrash,
   hasMore,
   loading,
   error,
   searchQuery,
 }) {
   const [isRotating, setIsRotating] = useState(false);
+  const isSentFolder = (selectedFolder || "").toLowerCase().includes("sent");
 
   const allSelected = messages.length > 0 && messages.every(msg => selectedEmails?.has(msg.uid));
   const someSelected = messages.some(msg => selectedEmails?.has(msg.uid)) && !allSelected;
@@ -75,7 +77,7 @@ export const MessageList = memo(function MessageList({
   }, [loading, isRotating]);
 
   return (
-    <div className="w-full lg:w-[28rem] h-full flex flex-col border-r border-border bg-card/20">
+    <div className="w-full lg:w-md h-full flex flex-col border-r border-border bg-card/20">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
@@ -132,6 +134,7 @@ export const MessageList = memo(function MessageList({
         onMarkRead={onBulkMarkRead}
         onMarkUnread={onBulkMarkUnread}
         onRemoveFromSpam={onBulkRemoveFromSpam}
+        onRestoreFromTrash={onBulkRestoreFromTrash}
         selectedFolder={selectedFolder}
         onClearSelection={() => onSelectAll(false)}
       />
@@ -186,7 +189,7 @@ export const MessageList = memo(function MessageList({
                         e.stopPropagation();
                         // Future: Add star toggle functionality
                       }}
-                      className="flex-shrink-0 pt-0.5 hover:scale-110 transition-transform cursor-pointer"
+                      className="shrink-0 pt-0.5 hover:scale-110 transition-transform cursor-pointer"
                       aria-label={flagged ? "Starred" : "Not starred"}
                     >
                       {flagged ? (
@@ -203,7 +206,7 @@ export const MessageList = memo(function MessageList({
                     {/* Message Content */}
                     <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelectMessage(msg)}>
                       <div className="flex items-center gap-2 mb-0.5">
-                        {!seen && (
+                        {!isSentFolder && !seen && (
                           <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-primary" />
                         )}
                         <span

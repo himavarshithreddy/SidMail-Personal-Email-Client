@@ -2,7 +2,6 @@ export function HelpModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const shortcuts = [
-    { key: "C", description: "Compose new message" },
     { key: "J", description: "Next message" },
     { key: "K", description: "Previous message" },
     { key: "ESC", description: "Close modal/compose" },

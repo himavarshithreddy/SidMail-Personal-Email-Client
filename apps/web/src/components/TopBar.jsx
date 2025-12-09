@@ -61,7 +61,7 @@ export function TopBar({
       {/* Logo */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+          <div className="w-7 h-7 rounded-md bg-linear-to-br from-primary to-accent flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">S</span>
           </div>
           <span className="text-lg font-semibold tracking-tight font-futuristic relative">
@@ -100,11 +100,11 @@ export function TopBar({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3 pr-2">
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center cursor-pointer ring-1 ring-border hover:ring-primary/50 transition-all"
+            className="w-9 h-9 rounded-full bg-muted flex items-center justify-center cursor-pointer ring-1 ring-border hover:ring-primary/50 transition-all"
             aria-label="User menu"
             aria-expanded={showProfileMenu}
           >
@@ -118,7 +118,7 @@ export function TopBar({
               strokeWidth="2" 
               strokeLinecap="round" 
               strokeLinejoin="round" 
-              className="w-4 h-4 text-muted-foreground"
+              className="w-5 h-5 text-muted-foreground"
             >
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />

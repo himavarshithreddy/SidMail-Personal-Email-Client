@@ -143,7 +143,7 @@ export function useMail() {
   }, [selectedMessage]);
 
   const deleteMessage = useCallback(async (message, folder) => {
-    await apiFetch("/mail/delete", {
+    const response = await apiFetch("/mail/delete", {
       method: "POST",
       body: JSON.stringify({ uid: message.uid, folder }),
     });
@@ -154,6 +154,8 @@ export function useMail() {
       setSelectedMessage(null);
       setMessageDetail(null);
     }
+    
+    return response;
   }, [selectedMessage]);
 
   const markAsSpam = useCallback(async (message, folder, isSpam) => {
@@ -169,6 +171,21 @@ export function useMail() {
     // Remove from current list since it moved
     setMessages((prev) => prev.filter((m) => m.uid !== message.uid));
     
+    if (selectedMessage?.uid === message.uid) {
+      setSelectedMessage(null);
+      setMessageDetail(null);
+    }
+  }, [selectedMessage]);
+
+  const moveMessage = useCallback(async (message, sourceFolder, targetFolder) => {
+    await apiFetch("/mail/move", {
+      method: "POST",
+      body: JSON.stringify({ uid: message.uid, sourceFolder, targetFolder }),
+    });
+
+    // Remove from current list since it moved
+    setMessages((prev) => prev.filter((m) => m.uid !== message.uid));
+
     if (selectedMessage?.uid === message.uid) {
       setSelectedMessage(null);
       setMessageDetail(null);
@@ -204,6 +221,7 @@ export function useMail() {
     toggleFlag,
     deleteMessage,
     markAsSpam,
+    moveMessage,
     sendMail,
     selectFolder,
   };
