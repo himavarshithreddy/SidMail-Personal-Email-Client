@@ -61,4 +61,4 @@ A modern webmail interface that connects to any IMAP/SMTP server. Supports multi
 
 ---
 
-*Personal project - not for public distribution*
+
