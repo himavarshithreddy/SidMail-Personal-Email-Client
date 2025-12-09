@@ -60,10 +60,12 @@ export function TopBar({
     <header className="h-16 px-6 flex items-center justify-between border-b border-border bg-background">
       {/* Logo */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-linear-to-br from-primary to-accent flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">S</span>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <img
+            src="/logo-mark.svg"
+            alt="SidMail logo"
+            className="w-8 h-8"
+          />
           <span className="text-lg font-semibold tracking-tight font-futuristic relative">
             <span className="text-primary">SID</span><span className="text-white">MAIL</span>
           </span>
@@ -100,7 +102,7 @@ export function TopBar({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 pr-2">
+      <div className="flex items-center">
         <div className="relative" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}

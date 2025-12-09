@@ -41,9 +41,11 @@ export default function LoginPage() {
       <div className="w-full max-w-xl space-y-6">
         <header className="text-center">
           <div className="flex items-center justify-center gap-2.5 mb-4">
-            <div className="w-10 h-10 rounded-md bg-linear-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-base">S</span>
-            </div>
+            <img
+              src="/logo-mark.svg"
+              alt="SidMail logo"
+              className="w-10 h-10"
+            />
             <h1 className="text-3xl font-semibold font-futuristic relative">
               <span className="text-primary">SID</span>
               <span className="text-white">MAIL</span>

@@ -402,28 +402,44 @@ async function appendToSent(account, rawMessage) {
       const folders = await client.list();
       const hasFolder = folders.some((f) => f.path.toLowerCase() === folder.toLowerCase());
       if (!hasFolder) {
-        console.warn("appendToSent - folder missing, skipping creation per policy:", folder);
-        continue; // do not create new folders
+        try {
+          console.warn("appendToSent - folder missing, attempting create:", folder);
+          await client.mailboxCreate(folder);
+          console.log("appendToSent - created folder:", folder);
+        } catch (createErr) {
+          console.warn("appendToSent - folder create failed, skipping:", createErr.message);
+          continue;
+        }
       }
 
       await openMailbox(client, folder);
+      // First attempt: append without flags to avoid providers rejecting flag atoms
       try {
-        await client.append(folder, rawMessage, { flags: ["\\Seen"] });
-        console.log("appendToSent - appended to", folder, "with \\Seen");
-        return; // success
-      } catch (appendErr) {
-        const msg = appendErr.message || "";
-        const resp = appendErr.responseText || "";
-        console.warn("appendToSent - append with \\Seen failed:", msg, "resp:", resp, "folder:", folder);
+        await client.append(folder, rawMessage);
+        console.log("appendToSent - appended to", folder, "without flags (first attempt)");
+        return;
+      } catch (noFlagErr) {
+        const msg = noFlagErr.message || "";
+        const resp = noFlagErr.responseText || "";
+        console.warn("appendToSent - append without flags failed, will try with \\Seen:", msg, "resp:", resp, "folder:", folder);
 
-        // Retry without flags if server rejects the flags format
+        // Re-open mailbox in case connection got dropped
         try {
-          await client.append(folder, rawMessage);
-          console.log("appendToSent - appended to", folder, "without flags");
+          await openMailbox(client, folder);
+        } catch (reopenErr) {
+          console.error("appendToSent - reopen after no-flag failure failed:", reopenErr.message, "folder:", folder);
+          lastErr = reopenErr;
+          continue;
+        }
+
+        // Second attempt: append with Seen flag for providers that require it
+        try {
+          await client.append(folder, rawMessage, { flags: ["\\Seen"] });
+          console.log("appendToSent - appended to", folder, "with \\Seen (second attempt)");
           return;
-        } catch (retryErr) {
-          console.error("appendToSent - retry without flags failed:", retryErr.message, "resp:", retryErr.responseText, "folder:", folder);
-          lastErr = retryErr;
+        } catch (flagErr) {
+          console.error("appendToSent - append with \\Seen failed:", flagErr.message, "resp:", flagErr.responseText, "folder:", folder);
+          lastErr = flagErr;
           continue; // try next folder
         }
       }

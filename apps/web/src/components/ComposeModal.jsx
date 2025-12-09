@@ -1,9 +1,48 @@
 import { useState, useEffect, useRef } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
+import DOMPurify from "dompurify";
 import { ErrorMessage } from "./ui/ErrorMessage";
 import { validateEmails } from "../lib/validation";
 
+const decodeHtmlEntities = (value = "") => {
+  if (!value) return "";
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(value, "text/html");
+  return doc.documentElement.textContent || "";
+};
+
+const inlineEmailStyles = (html) => {
+  if (!html) return "";
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    doc.querySelectorAll("blockquote").forEach((el) => {
+      el.setAttribute(
+        "style",
+        "border-left:3px solid #6b7280;padding-left:10px;margin:0 0 12px;color:#374151;font-style:italic;"
+      );
+    });
+    doc.querySelectorAll("ul").forEach((el) => {
+      el.setAttribute("style", "padding-left:20px;margin:0 0 12px;list-style:disc;");
+    });
+    doc.querySelectorAll("ol").forEach((el) => {
+      el.setAttribute("style", "padding-left:20px;margin:0 0 12px;list-style:decimal;");
+    });
+    doc.querySelectorAll("li").forEach((el) => {
+      el.setAttribute("style", "margin:4px 0;");
+    });
+    return doc.body.innerHTML;
+  } catch (e) {
+    return html;
+  }
+};
+
 export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFromName }) {
-  const [formData, setFormData] = useState({ from: "", fromName: "", to: "", subject: "", text: "" });
+  const [formData, setFormData] = useState({ from: "", fromName: "", to: "", subject: "", text: "", html: "" });
   const [showFrom, setShowFrom] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [error, setError] = useState("");
@@ -13,6 +52,51 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
   const [ccBcc, setCcBcc] = useState({ cc: "", bcc: "" });
   const modalRef = useRef(null);
   const fileInputRef = useRef(null);
+  const linkInputRef = useRef(null);
+  const [linkInputOpen, setLinkInputOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        bulletList: { keepMarks: true, keepAttributes: false },
+        orderedList: { keepMarks: true, keepAttributes: false },
+      }),
+      Underline,
+      Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+    ],
+    content: "",
+    immediatelyRender: false,
+    editorProps: {
+      transformPastedHTML: (html) => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
+      attributes: {
+        class: "tiptap-prosemirror",
+        "data-placeholder": "Type your message...",
+        spellcheck: "true",
+        "aria-label": "Message body editor",
+      },
+    },
+    onUpdate: ({ editor: nextEditor }) => {
+      const html = nextEditor.getHTML();
+      const text = nextEditor.getText();
+      setFormData((prev) => ({ ...prev, text, html }));
+    },
+  });
+
+  const activeLink = editor?.getAttributes("link")?.href || "";
+  const getSelectedText = () => {
+    if (!editor) return "";
+    const { from, to } = editor.state.selection;
+    return editor.state.doc.textBetween(from, to, " ", " ").trim();
+  };
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!sending);
+    }
+  }, [sending, editor]);
 
   const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
@@ -42,19 +126,36 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ from: defaultFrom || "", fromName: defaultFromName || "", to: "", subject: "", text: "" });
+      const initial = {
+        from: defaultFrom || "",
+        fromName: defaultFromName || "",
+        to: "",
+        subject: "",
+        text: "",
+        html: "",
+      };
+      setFormData(initial);
       setCcBcc({ cc: "", bcc: "" });
       setShowCc(false);
       setShowBcc(false);
       setAttachments([]);
       setShowFrom(false);
       setError("");
+      editor?.commands.setContent("");
       // Focus first input
       setTimeout(() => {
         modalRef.current?.querySelector("input")?.focus();
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, editor, defaultFrom, defaultFromName]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const nextHtml = DOMPurify.sanitize(formData.html || "", { USE_PROFILES: { html: true } });
+    if (editor.getHTML() !== nextHtml) {
+      editor.commands.setContent(nextHtml, false);
+    }
+  }, [editor, formData.html]);
 
   // Handle Escape key
   useEffect(() => {
@@ -103,8 +204,12 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
     setSending(true);
 
     try {
+      const decodedHtml = decodeHtmlEntities(formData.html);
+      const sanitizedHtml = DOMPurify.sanitize(decodedHtml, { USE_PROFILES: { html: true } });
+      const styledHtml = inlineEmailStyles(sanitizedHtml);
       await onSend({
         ...formData,
+        ...(formData.html && { html: styledHtml }),
         ...(formData.from && { from: formData.from }),
         ...(formData.fromName && { fromName: formData.fromName }),
         ...(ccBcc.cc && { cc: ccBcc.cc }),
@@ -149,6 +254,46 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleOpenLinkInput = () => {
+    if (!editor) return;
+    const previousUrl = editor.getAttributes("link").href || "";
+    setLinkUrl(previousUrl);
+    const selected = getSelectedText();
+    setLinkText(selected || "");
+    setLinkInputOpen(true);
+    setTimeout(() => linkInputRef.current?.focus(), 10);
+  };
+
+  const handleApplyLink = () => {
+    if (!editor) return;
+    const url = linkUrl.trim();
+    const text = linkText.trim();
+    if (url) {
+      const chain = editor.chain().focus().extendMarkRange("link").setLink({ href: url });
+      if (text) {
+        chain.insertContent(text).run();
+      } else {
+        chain.run();
+      }
+    } else {
+      editor.chain().focus().unsetLink().run();
+    }
+    setLinkInputOpen(false);
+  };
+
+  const handleRemoveLink = () => {
+    if (!editor) return;
+    editor.chain().focus().unsetLink().run();
+    setLinkInputOpen(false);
+    setLinkUrl("");
+    setLinkText("");
+  };
+
+  const editorButtonClass = (active) =>
+    `px-3 py-1.5 text-base rounded-md border border-border/70 bg-background transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+      active ? "bg-muted text-foreground border-border" : "text-muted-foreground hover:bg-muted/80"
+    }`;
+
   if (!isOpen) return null;
 
   return (
@@ -180,7 +325,8 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
           </button>
         </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4 relative" onSubmit={handleSubmit}>
+          {sending && <div className="absolute inset-0 z-20 bg-background/40 cursor-not-allowed" aria-hidden="true" />}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label htmlFor="compose-to" className="text-base font-medium text-foreground">
@@ -356,14 +502,216 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
             <label htmlFor="compose-message" className="text-base font-medium text-foreground">
               Message
             </label>
-            <textarea
-              id="compose-message"
-              className="input min-h-[200px] max-h-[400px] resize-y"
-              placeholder="Type your message..."
-              value={formData.text}
-              onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-              disabled={sending}
-            />
+            <div className="tiptap-shell flex flex-col rounded-md border border-border bg-background overflow-hidden">
+              <div className="tiptap-toolbar flex flex-wrap items-center gap-2 border-b border-border bg-muted/60 px-2 py-2">
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("bold"))}
+                  onClick={() => editor?.chain().focus().toggleBold().run()}
+                  disabled={!editor || sending}
+                  aria-label="Bold"
+                  aria-pressed={editor?.isActive("bold") || false}
+                  title="Bold"
+                >
+                  <span className="font-semibold text-lg">B</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("italic"))}
+                  onClick={() => editor?.chain().focus().toggleItalic().run()}
+                  disabled={!editor || sending}
+                  aria-label="Italic"
+                  aria-pressed={editor?.isActive("italic") || false}
+                  title="Italic"
+                >
+                  <span className="italic text-lg">I</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("underline"))}
+                  onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                  disabled={!editor || sending}
+                  aria-label="Underline"
+                  aria-pressed={editor?.isActive("underline") || false}
+                  title="Underline"
+                >
+                  <span className="underline text-lg">U</span>
+                </button>
+                <div className="h-6 border-l border-border mx-1" />
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("bulletList"))}
+                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                  disabled={!editor || sending}
+                  aria-label="Bullet list"
+                  aria-pressed={editor?.isActive("bulletList") || false}
+                  title="Bullet list"
+                >
+                  <span className="text-base">• List</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("orderedList"))}
+                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                  disabled={!editor || sending}
+                  aria-label="Numbered list"
+                  aria-pressed={editor?.isActive("orderedList") || false}
+                  title="Numbered list"
+                >
+                  <span className="text-base">1. List</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("blockquote"))}
+                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                  disabled={!editor || sending}
+                  aria-label="Blockquote"
+                  aria-pressed={editor?.isActive("blockquote") || false}
+                  title="Quote"
+                >
+                  <span className="text-base">“Quote”</span>
+                </button>
+                <div className="h-6 border-l border-border mx-1" />
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive({ textAlign: "left" }))}
+                  onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+                  disabled={!editor || sending}
+                  aria-label="Align left"
+                  aria-pressed={editor?.isActive({ textAlign: "left" }) || false}
+                  title="Align left"
+                >
+                  <span className="text-lg">L</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive({ textAlign: "center" }))}
+                  onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+                  disabled={!editor || sending}
+                  aria-label="Align center"
+                  aria-pressed={editor?.isActive({ textAlign: "center" }) || false}
+                  title="Align center"
+                >
+                  <span className="text-lg">C</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive({ textAlign: "right" }))}
+                  onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+                  disabled={!editor || sending}
+                  aria-label="Align right"
+                  aria-pressed={editor?.isActive({ textAlign: "right" }) || false}
+                  title="Align right"
+                >
+                  <span className="text-lg">R</span>
+                </button>
+                <div className="h-6 border-l border-border mx-1" />
+                <button
+                  type="button"
+                  className={editorButtonClass(editor?.isActive("link") || linkInputOpen)}
+                  onClick={handleOpenLinkInput}
+                  disabled={!editor || sending}
+                  aria-label="Insert link"
+                  aria-pressed={editor?.isActive("link") || linkInputOpen || false}
+                  title="Insert link"
+                >
+                  <span className="text-base font-medium">Link</span>
+                </button>
+                <div className="h-6 border-l border-border mx-1" />
+                <button
+                  type="button"
+                  className={editorButtonClass(false)}
+                  onClick={() => editor?.chain().focus().undo().run()}
+                  disabled={!editor || !editor.can().undo() || sending}
+                  aria-label="Undo"
+                  title="Undo"
+                >
+                  <span className="text-base">Undo</span>
+                </button>
+                <button
+                  type="button"
+                  className={editorButtonClass(false)}
+                  onClick={() => editor?.chain().focus().redo().run()}
+                  disabled={!editor || !editor.can().redo() || sending}
+                  aria-label="Redo"
+                  title="Redo"
+                >
+                  <span className="text-base">Redo</span>
+                </button>
+              </div>
+              {linkInputOpen && (
+                <div className="flex flex-col gap-2 px-3 py-3 border-b border-border bg-background">
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={linkInputRef}
+                      type="url"
+                      className="input h-9"
+                      placeholder="Paste or type a URL"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyLink();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setLinkInputOpen(false);
+                        }
+                      }}
+                      disabled={sending || !editor}
+                    />
+                    <input
+                      type="text"
+                      className="input h-9"
+                      placeholder="Text to display (optional)"
+                      value={linkText}
+                      onChange={(e) => setLinkText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleApplyLink();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setLinkInputOpen(false);
+                        }
+                      }}
+                      disabled={sending || !editor}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn-primary h-9 px-3 cursor-pointer"
+                      onClick={handleApplyLink}
+                      disabled={sending || !editor || !linkUrl.trim()}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost h-9 px-3 cursor-pointer"
+                      onClick={handleRemoveLink}
+                      disabled={sending || !editor}
+                    >
+                      Remove
+                    </button>
+                    <span className="ml-auto text-xs text-muted-foreground">Enter to apply · Esc to close</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {getSelectedText() ? `Selected text: “${getSelectedText()}”` : "No text selected"}
+                    {activeLink ? ` • Active link: ${activeLink}` : ""}
+                  </div>
+                </div>
+              )}
+              {editor ? (
+                <EditorContent
+                  editor={editor}
+                  className="tiptap-editor prose prose-sm max-w-none min-h-[200px] max-h-[320px] overflow-y-auto px-3 py-2"
+                />
+              ) : (
+                <div className="p-3 text-sm text-muted-foreground">Loading editor...</div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
