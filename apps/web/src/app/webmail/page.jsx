@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { Suspense, useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { useMail } from "../../hooks/useMail";
@@ -16,6 +16,14 @@ import { SplashLoader } from "../../components/ui/SplashLoader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 
 export default function WebmailPage() {
+  return (
+    <Suspense fallback={<SplashLoader />}>
+      <WebmailPageContent />
+    </Suspense>
+  );
+}
+
+function WebmailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const lastSyncedParams = useRef(searchParams.toString());

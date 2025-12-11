@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { LoginForm } from "../../components/LoginForm";
@@ -8,6 +8,14 @@ import { HelpModal } from "../../components/HelpModal";
 import { SplashLoader } from "../../components/ui/SplashLoader";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<SplashLoader />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const addMode = searchParams?.get("add") === "1";
