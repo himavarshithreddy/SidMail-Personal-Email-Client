@@ -186,7 +186,7 @@ export const FolderList = memo(function FolderList({
       {/* Links + Settings */}
       <div className="p-2 border-t border-sidebar-border space-y-2">
         <a
-          href="https://mail.sidmail.app/admin/user/settings"
+          href="https://mx.sidmail.app/admin/user/settings"
           target="_blank"
           rel="noreferrer"
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-base text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors cursor-pointer"
@@ -202,7 +202,7 @@ export const FolderList = memo(function FolderList({
           <span>Server</span>
         </a>
         <a
-          href="https://mail.sidmail.app/webmail/"
+          href="https://mx.sidmail.app/webmail/"
           target="_blank"
           rel="noreferrer"
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-base text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors cursor-pointer"

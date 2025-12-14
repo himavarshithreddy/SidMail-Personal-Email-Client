@@ -14,22 +14,23 @@
   "packageManager": "pnpm@10.24.0",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "cors": "^2.8.5",
     "cookie-parser": "^1.4.7",
-    "express-rate-limit": "^7.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "imapflow": "^1.1.1",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.1",
     "mailparser": "^3.8.0",
+    "morgan": "^1.10.1",
     "nodemailer": "^7.0.11",
     "sanitize-html": "^2.17.0",
     "sql.js": "^1.11.1",
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.1.11"
   }
 }

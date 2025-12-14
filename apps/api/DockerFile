@@ -1,25 +1,17 @@
-FROM node:20-alpine AS builder
-WORKDIR /workspace
+FROM node:20-alpine
+
+WORKDIR /app
 
 # Enable pnpm
 RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
 
-# Copy workspace metadata
+# Copy only what is needed
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps ./apps
 
-# Install deps for only this package
-WORKDIR /workspace/apps/api
-RUN pnpm install --frozen-lockfile
-
-# Runtime image
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
-
-# Copy built API
-COPY --from=builder /workspace/apps/api ./
+# Install ONLY api deps
+WORKDIR /app/apps/api
+RUN pnpm install --prod --frozen-lockfile
 
 ENV NODE_ENV=production
 ENV API_PORT=4000

@@ -72,7 +72,7 @@ function LoginPageContent() {
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-2">
             <a
-              href="https://mail.sidmail.app/admin/user/settings"
+              href="https://mx.sidmail.app/admin/user/settings"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors cursor-pointer"
@@ -88,7 +88,7 @@ function LoginPageContent() {
               <span>Server</span>
             </a>
             <a
-              href="https://mail.sidmail.app/webmail/"
+              href="https://mx.sidmail.app/webmail/"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors cursor-pointer"

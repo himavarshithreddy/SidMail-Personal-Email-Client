@@ -1,4 +1,10 @@
 const path = require("path");
+// Load environment variables from a .env file if present
+try {
+  require("dotenv").config();
+} catch (_) {
+  // dotenv is optional; ignore if not installed
+}
 
 const required = (name, fallback) => {
   const val = process.env[name];
