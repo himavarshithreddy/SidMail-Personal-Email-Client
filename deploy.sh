@@ -10,7 +10,7 @@ cd "$APP_DIR"
 
 echo "[1/6] Fetching latest code"
 git fetch origin
-git reset --hard origin/main
+git reset --hard origin/master
 git clean -fd
 
 echo "[2/6] Stopping containers"
