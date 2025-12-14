@@ -23,7 +23,12 @@ export const metadata = {
   description: "A personal email client for my personal email needs",
   keywords: ["email", "IMAP", "SMTP", "email client", "mail server"],
   authors: [{ name: "SidMail" }],
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
   themeColor: "#0066FF",
 };
 

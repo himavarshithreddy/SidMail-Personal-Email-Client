@@ -7,9 +7,11 @@ const defaultLogin = {
   imapHost: "mail.sidmail.app",
   imapPort: 993,
   imapSecure: true,
+  imapStarttls: false,
   smtpHost: "mail.sidmail.app",
   smtpPort: 465,
   smtpSecure: true,
+  smtpStarttls: false,
 };
 
 export function LoginForm({ onLogin }) {
@@ -207,7 +209,7 @@ export function LoginForm({ onLogin }) {
               id="imapSecure"
               type="checkbox"
               checked={login.imapSecure}
-              onChange={(e) => setLogin({ ...login, imapSecure: e.target.checked })}
+              onChange={(e) => setLogin({ ...login, imapSecure: e.target.checked, imapStarttls: e.target.checked ? false : login.imapStarttls })}
               disabled={loading}
                   className="w-4 h-4 rounded border-border bg-transparent text-primary focus:ring-2 focus:ring-primary/50 cursor-pointer"
             />
@@ -218,15 +220,43 @@ export function LoginForm({ onLogin }) {
 
           <div className="flex items-center gap-3">
             <input
+              id="imapStarttls"
+              type="checkbox"
+              checked={login.imapStarttls}
+              onChange={(e) => setLogin({ ...login, imapStarttls: e.target.checked, imapSecure: e.target.checked ? false : login.imapSecure })}
+              disabled={loading}
+              className="w-4 h-4 rounded border-border bg-transparent text-primary focus:ring-2 focus:ring-primary/50 cursor-pointer"
+            />
+            <label htmlFor="imapStarttls" className="text-base text-foreground cursor-pointer">
+              IMAP STARTTLS
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
               id="smtpSecure"
               type="checkbox"
               checked={login.smtpSecure}
-              onChange={(e) => setLogin({ ...login, smtpSecure: e.target.checked })}
+              onChange={(e) => setLogin({ ...login, smtpSecure: e.target.checked, smtpStarttls: e.target.checked ? false : login.smtpStarttls })}
               disabled={loading}
                   className="w-4 h-4 rounded border-border bg-transparent text-primary focus:ring-2 focus:ring-primary/50 cursor-pointer"
             />
                 <label htmlFor="smtpSecure" className="text-base text-foreground cursor-pointer">
               SMTP Secure (TLS)
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              id="smtpStarttls"
+              type="checkbox"
+              checked={login.smtpStarttls}
+              onChange={(e) => setLogin({ ...login, smtpStarttls: e.target.checked, smtpSecure: e.target.checked ? false : login.smtpSecure })}
+              disabled={loading}
+              className="w-4 h-4 rounded border-border bg-transparent text-primary focus:ring-2 focus:ring-primary/50 cursor-pointer"
+            />
+            <label htmlFor="smtpStarttls" className="text-base text-foreground cursor-pointer">
+              SMTP STARTTLS
             </label>
           </div>
         </div>

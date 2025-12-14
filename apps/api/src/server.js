@@ -111,9 +111,11 @@ app.post(
         imapHost: z.string().optional(),
         imapPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultImapPort),
         imapSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultImapSecure),
+        imapStarttls: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(false),
         smtpHost: z.string().optional(),
         smtpPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultSmtpPort),
         smtpSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultSmtpSecure),
+        smtpStarttls: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(false),
       });
 
       const parseResult = schema.safeParse(req.body);
@@ -130,9 +132,11 @@ app.post(
       imap_host: payload.imapHost || config.defaultImapHost,
       imap_port: payload.imapPort ?? config.defaultImapPort,
       imap_secure: payload.imapSecure ?? config.defaultImapSecure,
+      imap_starttls: payload.imapStarttls ?? false,
       smtp_host: payload.smtpHost || config.defaultSmtpHost,
       smtp_port: payload.smtpPort ?? config.defaultSmtpPort,
       smtp_secure: payload.smtpSecure ?? config.defaultSmtpSecure,
+      smtp_starttls: payload.smtpStarttls ?? false,
     };
     console.log("Built creds:", { ...creds, password: "***" });
 
@@ -226,9 +230,11 @@ app.post("/auth/add-account", authMiddleware, async (req, res) => {
     imapHost: z.string().optional(),
     imapPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultImapPort),
     imapSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultImapSecure),
+    imapStarttls: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(false),
     smtpHost: z.string().optional(),
     smtpPort: z.union([z.number(), z.string()]).transform((v) => Number(v)).default(config.defaultSmtpPort),
     smtpSecure: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(config.defaultSmtpSecure),
+    smtpStarttls: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true").default(false),
     label: z.string().optional(),
   });
 
@@ -272,9 +278,11 @@ app.post("/auth/add-account", authMiddleware, async (req, res) => {
       imap_host: payload.imapHost || base.imap_host || config.defaultImapHost,
       imap_port: payload.imapPort ?? base.imap_port ?? config.defaultImapPort,
       imap_secure: payload.imapSecure ?? base.imap_secure ?? config.defaultImapSecure,
+      imap_starttls: payload.imapStarttls ?? base.imap_starttls ?? false,
       smtp_host: payload.smtpHost || base.smtp_host || config.defaultSmtpHost,
       smtp_port: payload.smtpPort ?? base.smtp_port ?? config.defaultSmtpPort,
       smtp_secure: payload.smtpSecure ?? base.smtp_secure ?? config.defaultSmtpSecure,
+      smtp_starttls: payload.smtpStarttls ?? base.smtp_starttls ?? false,
       accounts: [...accounts, newAccount],
     };
     const enc = encrypt(JSON.stringify(next));

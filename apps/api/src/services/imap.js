@@ -29,9 +29,11 @@ function resolveSubAccountCreds(account, accountId) {
     imap_host: base.imap_host,
     imap_port: base.imap_port,
     imap_secure: base.imap_secure,
+    imap_starttls: base.imap_starttls,
     smtp_host: base.smtp_host,
     smtp_port: base.smtp_port,
     smtp_secure: base.smtp_secure,
+    smtp_starttls: base.smtp_starttls,
     username,
     password,
     label,
@@ -53,6 +55,7 @@ async function getClient(account, accountId) {
     host: creds.imap_host,
     port: creds.imap_port,
     secure: !!creds.imap_secure,
+    ...(creds.imap_starttls && !creds.imap_secure ? { requireTLS: true } : {}),
     auth: {
       user: creds.username,
       pass: creds.password,
@@ -486,11 +489,12 @@ async function appendToSent(account, rawMessage, accountId) {
 }
 
 async function verifyImap(creds) {
-  console.log("verifyImap - creating client with:", { host: creds.imap_host, port: creds.imap_port, secure: creds.imap_secure, user: creds.username });
+  console.log("verifyImap - creating client with:", { host: creds.imap_host, port: creds.imap_port, secure: creds.imap_secure, starttls: creds.imap_starttls, user: creds.username });
   const client = new ImapFlow({
     host: creds.imap_host,
     port: creds.imap_port,
     secure: !!creds.imap_secure,
+    ...(creds.imap_starttls && !creds.imap_secure ? { requireTLS: true } : {}),
     auth: {
       user: creds.username,
       pass: creds.password,

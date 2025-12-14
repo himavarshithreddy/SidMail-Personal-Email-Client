@@ -2,11 +2,12 @@ const nodemailer = require("nodemailer");
 const MailComposer = require("nodemailer/lib/mail-composer");
 
 async function verifySmtp(creds) {
-  console.log("verifySmtp - creating transport with:", { host: creds.smtp_host, port: creds.smtp_port, secure: creds.smtp_secure, user: creds.username });
+  console.log("verifySmtp - creating transport with:", { host: creds.smtp_host, port: creds.smtp_port, secure: creds.smtp_secure, starttls: creds.smtp_starttls, user: creds.username });
   const transport = nodemailer.createTransport({
     host: creds.smtp_host,
     port: creds.smtp_port,
     secure: !!creds.smtp_secure,
+    ...(creds.smtp_starttls && !creds.smtp_secure ? { requireTLS: true } : {}),
     auth: {
       user: creds.username,
       pass: creds.password,
@@ -42,6 +43,7 @@ async function sendMail(creds, payload) {
     host: creds.smtp_host,
     port: creds.smtp_port,
     secure: !!creds.smtp_secure,
+    ...(creds.smtp_starttls && !creds.smtp_secure ? { requireTLS: true } : {}),
     auth: {
       user: creds.username,
       pass: creds.password,
