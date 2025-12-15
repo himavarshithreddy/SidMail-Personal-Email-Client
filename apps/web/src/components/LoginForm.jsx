@@ -4,11 +4,11 @@ import { ErrorMessage } from "./ui/ErrorMessage";
 const defaultLogin = {
   username: "",
   password: "",
-  imapHost: "mail.sidmail.app",
+  imapHost: "mx.sidmail.app",
   imapPort: 993,
   imapSecure: true,
   imapStarttls: false,
-  smtpHost: "mail.sidmail.app",
+  smtpHost: "mx.sidmail.app",
   smtpPort: 465,
   smtpSecure: true,
   smtpStarttls: false,
@@ -157,7 +157,7 @@ export function LoginForm({ onLogin }) {
               className="input"
               value={login.imapHost}
               onChange={(e) => setLogin({ ...login, imapHost: e.target.value })}
-                  placeholder="mail.sidmail.app"
+                  placeholder="mx.sidmail.app"
               disabled={loading}
             />
           </div>
@@ -185,7 +185,7 @@ export function LoginForm({ onLogin }) {
               className="input"
               value={login.smtpHost}
               onChange={(e) => setLogin({ ...login, smtpHost: e.target.value })}
-                  placeholder="mail.sidmail.app"
+                  placeholder="mx.sidmail.app"
               disabled={loading}
             />
           </div>

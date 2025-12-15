@@ -4,9 +4,15 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import FontFamily from "@tiptap/extension-font-family";
+import Highlight from "@tiptap/extension-highlight";
 import DOMPurify from "dompurify";
 import { ErrorMessage } from "./ui/ErrorMessage";
 import { validateEmails } from "../lib/validation";
+import { ColorPicker } from "./ui/ColorPicker";
+import { FontSize } from "../lib/tiptap-extensions";
 
 const decodeHtmlEntities = (value = "") => {
   if (!value) return "";
@@ -20,21 +26,34 @@ const inlineEmailStyles = (html) => {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
+    
+    // Helper to merge styles
+    const mergeStyles = (element, newStyles) => {
+      const existingStyle = element.getAttribute("style") || "";
+      const merged = existingStyle + (existingStyle && !existingStyle.endsWith(";") ? ";" : "") + newStyles;
+      element.setAttribute("style", merged);
+    };
+    
     doc.querySelectorAll("blockquote").forEach((el) => {
-      el.setAttribute(
-        "style",
-        "border-left:3px solid #6b7280;padding-left:10px;margin:0 0 12px;color:#374151;font-style:italic;"
-      );
+      mergeStyles(el, "border-left:3px solid #6b7280;padding-left:10px;margin:0 0 12px;color:#374151;font-style:italic;");
     });
     doc.querySelectorAll("ul").forEach((el) => {
-      el.setAttribute("style", "padding-left:20px;margin:0 0 12px;list-style:disc;");
+      mergeStyles(el, "padding-left:20px;margin:0 0 12px;list-style:disc;");
     });
     doc.querySelectorAll("ol").forEach((el) => {
-      el.setAttribute("style", "padding-left:20px;margin:0 0 12px;list-style:decimal;");
+      mergeStyles(el, "padding-left:20px;margin:0 0 12px;list-style:decimal;");
     });
     doc.querySelectorAll("li").forEach((el) => {
-      el.setAttribute("style", "margin:4px 0;");
+      mergeStyles(el, "margin:4px 0;");
     });
+    
+    // Ensure paragraphs have margin
+    doc.querySelectorAll("p").forEach((el) => {
+      if (!el.getAttribute("style")?.includes("margin")) {
+        mergeStyles(el, "margin:0 0 12px;");
+      }
+    });
+    
     return doc.body.innerHTML;
   } catch (e) {
     return html;
@@ -56,6 +75,8 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
   const [linkInputOpen, setLinkInputOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
+  const [isRichTextMode, setIsRichTextMode] = useState(true);
+  const [rawHtml, setRawHtml] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -66,6 +87,11 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
       Underline,
       Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextStyle,
+      Color,
+      FontFamily,
+      Highlight.configure({ multicolor: true }),
+      FontSize,
     ],
     content: "",
     immediatelyRender: false,
@@ -204,12 +230,32 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
     setSending(true);
 
     try {
-      const decodedHtml = decodeHtmlEntities(formData.html);
-      const sanitizedHtml = DOMPurify.sanitize(decodedHtml, { USE_PROFILES: { html: true } });
-      const styledHtml = inlineEmailStyles(sanitizedHtml);
+      const emailData = { ...formData };
+      
+      if (isRichTextMode) {
+        // Rich Text mode - use editor content with formatting
+        const sanitizedHtml = DOMPurify.sanitize(formData.html, {
+          ALLOWED_ATTR: ['style', 'href', 'target', 'rel', 'class'],
+          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'mark'],
+          ALLOW_DATA_ATTR: false,
+        });
+        emailData.html = inlineEmailStyles(sanitizedHtml);
+        emailData.text = formData.text;
+      } else {
+        // HTML mode - use raw HTML directly
+        const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+          RETURN_TRUSTED_TYPE: false,
+          FORCE_BODY: false,
+        });
+        emailData.html = sanitizedHtml;
+        // Generate plain text from HTML for text-only clients
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sanitizedHtml;
+        emailData.text = tempDiv.textContent || tempDiv.innerText || '';
+      }
+      
       await onSend({
-        ...formData,
-        ...(formData.html && { html: styledHtml }),
+        ...emailData,
         ...(formData.from && { from: formData.from }),
         ...(formData.fromName && { fromName: formData.fromName }),
         ...(ccBcc.cc && { cc: ccBcc.cc }),
@@ -498,10 +544,22 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="compose-message" className="text-base font-medium text-foreground">
-              Message
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="compose-message" className="text-base font-medium text-foreground">
+                Message
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsRichTextMode(!isRichTextMode)}
+                className="px-3 py-1 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors cursor-pointer"
+                disabled={sending}
+                title={isRichTextMode ? "Switch to HTML" : "Switch to Rich Text"}
+              >
+                {isRichTextMode ? "Rich Text" : "HTML"}
+              </button>
+            </div>
             <div className="tiptap-shell flex flex-col rounded-md border border-border bg-background overflow-hidden">
+              {isHtmlMode && (
               <div className="tiptap-toolbar flex flex-wrap items-center gap-2 border-b border-border bg-muted/60 px-2 py-2">
                 <button
                   type="button"
@@ -536,6 +594,95 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
                 >
                   <span className="underline text-lg">U</span>
                 </button>
+
+                <div className="h-6 border-l border-border mx-1" />
+
+                {/* Font Size */}
+                <select
+                  className="px-2 py-1 text-sm rounded-md border border-border/70 bg-background cursor-pointer hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onChange={(e) => {
+                    const size = e.target.value;
+                    if (size) {
+                      editor?.chain().focus().setFontSize(size).run();
+                    } else {
+                      editor?.chain().focus().unsetFontSize().run();
+                    }
+                  }}
+                  disabled={!editor || sending}
+                  title="Font Size"
+                >
+                  <option value="">Size</option>
+                  <option value="12px">12px</option>
+                  <option value="14px">14px</option>
+                  <option value="16px">16px</option>
+                  <option value="18px">18px</option>
+                  <option value="20px">20px</option>
+                  <option value="24px">24px</option>
+                  <option value="28px">28px</option>
+                  <option value="32px">32px</option>
+                </select>
+
+                {/* Font Family */}
+                <select
+                  className="px-2 py-1 text-sm rounded-md border border-border/70 bg-background cursor-pointer hover:bg-muted/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onChange={(e) => {
+                    const font = e.target.value;
+                    if (font) {
+                      editor?.chain().focus().setFontFamily(font).run();
+                    } else {
+                      editor?.chain().focus().unsetFontFamily().run();
+                    }
+                  }}
+                  disabled={!editor || sending}
+                  title="Font Family"
+                >
+                  <option value="">Font</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="'Courier New', monospace">Courier New</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                  <option value="Impact, sans-serif">Impact</option>
+                  <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+                </select>
+
+                <div className="h-6 border-l border-border mx-1" />
+
+                {/* Text Color */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">A</span>
+                  <ColorPicker
+                    value={editor?.getAttributes("textStyle").color}
+                    onChange={(color) => {
+                      if (color) {
+                        editor?.chain().focus().setColor(color).run();
+                      } else {
+                        editor?.chain().focus().unsetColor().run();
+                      }
+                    }}
+                    disabled={!editor || sending}
+                    title="Text Color"
+                  />
+                </div>
+
+                {/* Background Color */}
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">BG</span>
+                  <ColorPicker
+                    value={editor?.getAttributes("highlight").color}
+                    onChange={(color) => {
+                      if (color) {
+                        editor?.chain().focus().setHighlight({ color }).run();
+                      } else {
+                        editor?.chain().focus().unsetHighlight().run();
+                      }
+                    }}
+                    disabled={!editor || sending}
+                    title="Background Color"
+                  />
+                </div>
+
                 <div className="h-6 border-l border-border mx-1" />
                 <button
                   type="button"
@@ -638,7 +785,8 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
                   <span className="text-base">Redo</span>
                 </button>
               </div>
-              {linkInputOpen && (
+              )}
+              {isRichTextMode && linkInputOpen && (
                 <div className="flex flex-col gap-2 px-3 py-3 border-b border-border bg-background">
                   <div className="flex flex-col gap-2">
                     <input
@@ -702,13 +850,24 @@ export function ComposeModal({ isOpen, onClose, onSend, defaultFrom, defaultFrom
                   </div>
                 </div>
               )}
-              {editor ? (
-                <EditorContent
-                  editor={editor}
-                  className="tiptap-editor prose prose-sm max-w-none min-h-[200px] max-h-[320px] overflow-y-auto px-3 py-2"
-                />
+              {isRichTextMode ? (
+                editor ? (
+                  <EditorContent
+                    editor={editor}
+                    className="tiptap-editor prose prose-sm max-w-none min-h-[200px] max-h-[320px] overflow-y-auto px-3 py-2"
+                  />
+                ) : (
+                  <div className="p-3 text-sm text-muted-foreground">Loading editor...</div>
+                )
               ) : (
-                <div className="p-3 text-sm text-muted-foreground">Loading editor...</div>
+                <textarea
+                  value={rawHtml}
+                  onChange={(e) => setRawHtml(e.target.value)}
+                  className="tiptap-editor min-h-[200px] max-h-[320px] overflow-y-auto px-3 py-2 font-mono text-sm bg-background text-foreground border-none focus:outline-none resize-none"
+                  placeholder="Paste your HTML code here..."
+                  disabled={sending}
+                  spellCheck={false}
+                />
               )}
             </div>
           </div>
