@@ -21,6 +21,11 @@ jobs:
       - name: Deploy on VPS
         run: |
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            
             cd ${{ secrets.VPS_APP_DIR }}
             ./deploy.sh
           EOF
