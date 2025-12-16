@@ -158,11 +158,7 @@ input[type="checkbox"]:indeterminate::after {
 
 /* Input styles */
 .input {
-  @apply w-full rounded-md bg-muted/50 border border-transparent px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground 
-    transition-all duration-200
-    hover:border-border 
-    focus:outline-none focus:bg-muted focus:border-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0
-    disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply w-full rounded-md bg-muted/50 border border-transparent px-4 py-2.5 text-base text-foreground placeholder:text-muted-foreground transition-all duration-200 hover:border-border focus:outline-none focus:bg-muted focus:border-primary focus:ring-2 focus:ring-primary/20 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 textarea.input {
@@ -171,25 +167,11 @@ textarea.input {
 
 /* Button styles */
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-md 
-    px-4 py-2.5 text-base font-medium 
-    bg-primary text-primary-foreground
-    transition-colors duration-200 
-    hover:bg-primary/90
-    focus:outline-none focus:ring-2 focus:ring-ring
-    cursor-pointer
-    disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-base font-medium bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
 }
 
 .btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-md 
-    border border-border bg-transparent 
-    px-3 py-2 text-base text-foreground 
-    transition-colors duration-200 
-    hover:bg-muted hover:text-foreground
-    focus:outline-none focus:ring-2 focus:ring-ring
-    cursor-pointer
-    disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-border bg-transparent px-3 py-2 text-base text-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 /* Animations */
@@ -198,6 +180,7 @@ textarea.input {
     transform: translateY(-10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -209,6 +192,7 @@ textarea.input {
     transform: translateY(10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -219,6 +203,7 @@ textarea.input {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -228,9 +213,11 @@ textarea.input {
   0% {
     transform: translateX(-100%);
   }
+
   50% {
     transform: translateX(250%);
   }
+
   100% {
     transform: translateX(-100%);
   }
@@ -260,6 +247,7 @@ textarea.input {
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -267,6 +255,22 @@ textarea.input {
 
 .animate-shimmer {
   animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
 }
 
 /* Utility classes */

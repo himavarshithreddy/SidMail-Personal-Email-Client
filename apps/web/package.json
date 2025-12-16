@@ -37,6 +37,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4",
     "tailwindcss": "^4"
   }
