@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 
-export function TopBar({ 
-  onSearch, 
+export function TopBar({
+  onSearch,
   onLogout,
   userEmail = "",
   onAddAccount,
   accounts = [],
   activeAccountId = null,
   onAccountChange,
-  searchQuery = "", 
+  searchQuery = "",
   resultCount = 0,
-  isSearching = false 
+  isSearching = false
 }) {
   const activeAccount = accounts.find((a) => String(a.id) === String(activeAccountId)) || accounts[0] || null;
   const seen = new Set();
@@ -32,9 +32,8 @@ export function TopBar({
     const secondary = acc?.username && acc.username !== primary ? acc.username : null;
     return (
       <div
-        className={`group w-full text-left px-3 py-2.5 text-base rounded-lg transition-colors flex items-center gap-3 ${
-          isActive ? "bg-muted text-foreground" : "text-foreground hover:bg-muted/70"
-        }`}
+        className={`group w-full text-left px-3 py-2.5 text-base rounded-lg transition-colors flex items-center gap-3 ${isActive ? "bg-muted text-foreground" : "text-foreground hover:bg-muted/70"
+          }`}
       >
         <div className="w-9 h-9 rounded-full bg-muted/70 text-sm font-semibold text-foreground/90 flex items-center justify-center uppercase ring-1 ring-border">
           {getInitials(primary)}
@@ -99,8 +98,8 @@ export function TopBar({
 
   return (
     <header className="h-16 px-6 flex items-center justify-between border-b border-border bg-background">
-      {/* Logo */}
-      <div className="flex items-center gap-3">
+      {/* Logo - Hidden on mobile */}
+      <div className="hidden lg:flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <img
             src="/logo-mark.svg"
@@ -113,25 +112,25 @@ export function TopBar({
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md mx-8">
+      {/* Search Bar - Full width on mobile */}
+      <div className="flex-1 lg:max-w-md lg:mx-8">
         <div className="relative group">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="24" 
-            height="24" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
           >
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
           </svg>
-          
+
           <input
             type="text"
             value={localQuery}
@@ -151,16 +150,16 @@ export function TopBar({
             aria-label="User menu"
             aria-expanded={showProfileMenu}
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               className="w-5 h-5 text-muted-foreground"
             >
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />

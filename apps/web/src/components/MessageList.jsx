@@ -23,9 +23,9 @@ function formatDate(dateStr) {
 function highlightText(text, query) {
   if (!query || !text) return text;
   const parts = text.split(new RegExp(`(${query})`, 'gi'));
-  return parts.map((part, i) => 
-    part.toLowerCase() === query.toLowerCase() 
-      ? `<mark class="bg-primary/30 text-foreground">${part}</mark>` 
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.toLowerCase()
+      ? `<mark class="bg-primary/30 text-foreground">${part}</mark>`
       : part
   ).join('');
 }
@@ -77,7 +77,7 @@ export const MessageList = memo(function MessageList({
   }, [loading, isRotating]);
 
   return (
-    <div className="w-full lg:w-md h-full flex flex-col border-r border-border bg-card/20">
+    <div className="w-full h-full flex flex-col border-r border-border bg-card/20">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
@@ -100,22 +100,22 @@ export const MessageList = memo(function MessageList({
           <span className="text-base text-muted-foreground tabular-nums">{messages.length}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button 
+          <button
             className="p-2 rounded-md hover:bg-muted transition-colors cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleRefresh}
             disabled={isRotating}
             aria-label="Refresh messages"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               className={`w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors ${isRotating ? 'animate-spin' : ''}`}
             >
               <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -165,11 +165,9 @@ export const MessageList = memo(function MessageList({
               return (
                 <div
                   key={msg.uid}
-                  className={`relative transition-colors ${
-                    isChecked ? "bg-primary/10" : ""
-                  } ${
-                    isViewing && !isChecked ? "bg-muted/30" : ""
-                  } hover:bg-muted/30 border-b border-border last:border-b-0`}
+                  className={`relative transition-colors ${isChecked ? "bg-primary/10" : ""
+                    } ${isViewing && !isChecked ? "bg-muted/30" : ""
+                    } hover:bg-muted/30 border-b border-border last:border-b-0`}
                 >
                   <div className="flex items-start gap-3 px-4 py-3">
                     {/* Checkbox */}
@@ -210,9 +208,8 @@ export const MessageList = memo(function MessageList({
                           <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-primary" />
                         )}
                         <span
-                          className={`text-base truncate ${
-                            seen ? "text-muted-foreground font-normal" : "font-semibold text-foreground"
-                          }`}
+                          className={`text-base truncate ${seen ? "text-muted-foreground font-normal" : "font-semibold text-foreground"
+                            }`}
                           dangerouslySetInnerHTML={{
                             __html: highlightText(
                               (msg.from || []).map((f) => f.name || f.address).join(", ") || "Unknown sender",
@@ -220,17 +217,15 @@ export const MessageList = memo(function MessageList({
                             )
                           }}
                         />
-                        <span className={`text-sm whitespace-nowrap ml-auto ${
-                          seen ? "text-muted-foreground" : "text-foreground/90 font-medium"
-                        }`}>
+                        <span className={`text-sm whitespace-nowrap ml-auto ${seen ? "text-muted-foreground" : "text-foreground/90 font-medium"
+                          }`}>
                           {formatDate(msg.date)}
                         </span>
                       </div>
 
-                      <div 
-                        className={`text-base truncate mb-0.5 ${
-                          seen ? "text-muted-foreground font-normal" : "font-medium text-foreground"
-                        }`}
+                      <div
+                        className={`text-base truncate mb-0.5 ${seen ? "text-muted-foreground font-normal" : "font-medium text-foreground"
+                          }`}
                         dangerouslySetInnerHTML={{
                           __html: highlightText(msg.subject || "(No subject)", searchQuery)
                         }}

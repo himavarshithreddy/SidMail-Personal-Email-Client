@@ -9,7 +9,6 @@ import { TopBar } from "../../components/TopBar";
 import { FolderList } from "../../components/FolderList";
 import { MessageList } from "../../components/MessageList";
 import { DetailView } from "../../components/DetailView";
-import { MobileNav } from "../../components/MobileNav";
 import { HelpModal } from "../../components/HelpModal";
 import { Toast } from "../../components/ui/Toast";
 import { SplashLoader } from "../../components/ui/SplashLoader";
@@ -56,7 +55,7 @@ function WebmailPageContent() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
-  const [mobileView, setMobileView] = useState("folders");
+  const [mobileView, setMobileView] = useState("messages");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilter, setSearchFilter] = useState("all");
   const [selectedEmails, setSelectedEmails] = useState(new Set());
@@ -281,19 +280,19 @@ function WebmailPageContent() {
   // Filter messages based on search
   const filteredMessages = useMemo(() => {
     if (!searchQuery.trim()) return messages;
-    
+
     const query = searchQuery.toLowerCase();
     return messages.filter(msg => {
       if (searchFilter === "subject") {
         return msg.subject?.toLowerCase().includes(query);
       } else if (searchFilter === "from") {
-        return msg.from?.some(f => 
-          f.address?.toLowerCase().includes(query) || 
+        return msg.from?.some(f =>
+          f.address?.toLowerCase().includes(query) ||
           f.name?.toLowerCase().includes(query)
         );
       } else if (searchFilter === "to") {
-        return msg.to?.some(f => 
-          f.address?.toLowerCase().includes(query) || 
+        return msg.to?.some(f =>
+          f.address?.toLowerCase().includes(query) ||
           f.name?.toLowerCase().includes(query)
         );
       } else if (searchFilter === "body") {
@@ -304,12 +303,12 @@ function WebmailPageContent() {
         // Search all fields
         return (
           msg.subject?.toLowerCase().includes(query) ||
-          msg.from?.some(f => 
-            f.address?.toLowerCase().includes(query) || 
+          msg.from?.some(f =>
+            f.address?.toLowerCase().includes(query) ||
             f.name?.toLowerCase().includes(query)
           ) ||
-          msg.to?.some(f => 
-            f.address?.toLowerCase().includes(query) || 
+          msg.to?.some(f =>
+            f.address?.toLowerCase().includes(query) ||
             f.name?.toLowerCase().includes(query)
           ) ||
           msg.text?.toLowerCase().includes(query)
@@ -607,7 +606,7 @@ function WebmailPageContent() {
 
   const handleForward = () => {
     if (!messageDetail) return;
-    
+
     // Format the forwarded message
     const forwardText = `\n\n---------- Forwarded message ----------\n` +
       `From: ${messageDetail.message.from.map(f => f.name || f.address).join(", ")}\n` +
@@ -615,9 +614,9 @@ function WebmailPageContent() {
       `To: ${messageDetail.message.to.map(f => f.address || f.name).join(", ")}\n` +
       `Subject: ${messageDetail.message.subject || "(No subject)"}\n\n` +
       `${messageDetail.message.text || messageDetail.message.html?.replace(/<[^>]*>/g, "") || ""}`;
-    
+
     const forwardSubject = `Fwd: ${messageDetail.message.subject || "(No subject)"}`;
-    
+
     setComposeInitialData({
       to: "",
       subject: forwardSubject,
@@ -673,8 +672,8 @@ function WebmailPageContent() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - Hidden on mobile */}
-        <div className={`${mobileView === "folders" ? "block" : "hidden"} lg:block`}>
+        {/* Sidebar - FolderList handles its own mobile visibility */}
+        <div>
           <FolderList
             folders={folders}
             selectedFolder={selectedFolder}
@@ -689,7 +688,7 @@ function WebmailPageContent() {
         </div>
 
         {/* Message List */}
-        <div className={`${mobileView === "messages" ? "block" : "hidden"} lg:block h-full`}>
+        <div className={`${mobileView === "messages" ? "block" : "hidden"} lg:block h-full flex-1`}>
           <MessageList
             messages={filteredMessages}
             selectedMessage={selectedMessage}
@@ -742,15 +741,30 @@ function WebmailPageContent() {
             onUnmarkSpam={handleUnmarkSpam}
             onRestoreFromTrash={handleRestoreFromTrash}
             onDelete={handleDelete}
-          defaultFrom={activeAccount?.username || userEmail}
-          defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
+            defaultFrom={activeAccount?.username || userEmail}
+            defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
           />
         </div>
 
       </div>
 
-      {/* Mobile Navigation */}
-      <MobileNav currentView={mobileView} onViewChange={setMobileView} />
+      {/* Floating Compose Button - Mobile Only */}
+      <button
+        onClick={() => {
+          setComposeInitialData(null);
+          setComposeOpen(true);
+          setMobileView("detail");
+        }}
+        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all z-30 flex items-center justify-center cursor-pointer"
+        aria-label="Compose new message"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M5 12h14" />
+          <path d="M12 5v14" />
+        </svg>
+      </button>
+
+
 
       {/* Help Modal */}
       <HelpModal
