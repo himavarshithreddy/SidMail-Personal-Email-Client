@@ -13,6 +13,7 @@ import { HelpModal } from "../../components/HelpModal";
 import { Toast } from "../../components/ui/Toast";
 import { SplashLoader } from "../../components/ui/SplashLoader";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { ResizablePanel } from "../../components/ResizablePanel";
 
 export default function WebmailPage() {
   return (
@@ -687,62 +688,125 @@ function WebmailPageContent() {
           />
         </div>
 
-        {/* Message List */}
-        <div className={`${mobileView === "messages" ? "block" : "hidden"} lg:block h-full flex-1`}>
-          <MessageList
-            messages={filteredMessages}
-            selectedMessage={selectedMessage}
-            selectedFolder={selectedFolder}
-            selectedEmails={selectedEmails}
-            onSelectMessage={handleSelectMessage}
-            onToggleSelection={handleToggleSelection}
-            onSelectAll={handleSelectAll}
-            onRefresh={handleRefreshMessages}
-            onLoadMore={handleLoadMore}
-            onBulkDelete={handleBulkDelete}
-            onBulkMarkRead={handleBulkMarkRead}
-            onBulkMarkUnread={handleBulkMarkUnread}
-            onBulkRemoveFromSpam={handleBulkRemoveFromSpam}
-            onBulkRestoreFromTrash={handleBulkRestoreFromTrash}
-            hasMore={!!nextCursor}
-            loading={loading.messages}
-            error={error}
-            searchQuery={searchQuery}
-          />
+        {/* Mobile View - Show either messages or detail */}
+        <div className="lg:hidden flex-1 flex overflow-hidden">
+          {/* Message List - Mobile */}
+          <div className={`${mobileView === "messages" ? "block" : "hidden"} h-full w-full`}>
+            <MessageList
+              messages={filteredMessages}
+              selectedMessage={selectedMessage}
+              selectedFolder={selectedFolder}
+              selectedEmails={selectedEmails}
+              onSelectMessage={handleSelectMessage}
+              onToggleSelection={handleToggleSelection}
+              onSelectAll={handleSelectAll}
+              onRefresh={handleRefreshMessages}
+              onLoadMore={handleLoadMore}
+              onBulkDelete={handleBulkDelete}
+              onBulkMarkRead={handleBulkMarkRead}
+              onBulkMarkUnread={handleBulkMarkUnread}
+              onBulkRemoveFromSpam={handleBulkRemoveFromSpam}
+              onBulkRestoreFromTrash={handleBulkRestoreFromTrash}
+              hasMore={!!nextCursor}
+              loading={loading.messages}
+              error={error}
+              searchQuery={searchQuery}
+            />
+          </div>
+
+          {/* Message Detail or Compose - Mobile */}
+          <div className={`${mobileView === "detail" || composeOpen ? "block" : "hidden"} w-full`}>
+            <DetailView
+              composeOpen={composeOpen}
+              composeInitialData={composeInitialData}
+              onCloseCompose={() => {
+                setComposeOpen(false);
+                setComposeInitialData(null);
+                if (window.innerWidth < 1024 && !selectedMessage) {
+                  setMobileView("messages");
+                }
+              }}
+              onSendMail={handleSendMail}
+              message={selectedMessage}
+              messageDetail={messageDetail}
+              loading={loading.detail}
+              selectedFolder={selectedFolder}
+              onCompose={() => {
+                setComposeInitialData(null);
+                setComposeOpen(true);
+                setMobileView("detail");
+              }}
+              onForward={handleForward}
+              onStar={handleStar}
+              onMarkUnread={handleMarkUnread}
+              onMarkAsSpam={handleMarkAsSpam}
+              onUnmarkSpam={handleUnmarkSpam}
+              onRestoreFromTrash={handleRestoreFromTrash}
+              onDelete={handleDelete}
+              defaultFrom={activeAccount?.username || userEmail}
+              defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
+            />
+          </div>
         </div>
 
-        {/* Message Detail or Compose */}
-        <div className={`${mobileView === "detail" || composeOpen ? "block" : "hidden"} lg:block flex-1`}>
-          <DetailView
-            composeOpen={composeOpen}
-            composeInitialData={composeInitialData}
-            onCloseCompose={() => {
-              setComposeOpen(false);
-              setComposeInitialData(null);
-              // If on mobile and no message selected, go back to messages view
-              if (window.innerWidth < 1024 && !selectedMessage) {
-                setMobileView("messages");
-              }
-            }}
-            onSendMail={handleSendMail}
-            message={selectedMessage}
-            messageDetail={messageDetail}
-            loading={loading.detail}
-            selectedFolder={selectedFolder}
-            onCompose={() => {
-              setComposeInitialData(null);
-              setComposeOpen(true);
-              setMobileView("detail");
-            }}
-            onForward={handleForward}
-            onStar={handleStar}
-            onMarkUnread={handleMarkUnread}
-            onMarkAsSpam={handleMarkAsSpam}
-            onUnmarkSpam={handleUnmarkSpam}
-            onRestoreFromTrash={handleRestoreFromTrash}
-            onDelete={handleDelete}
-            defaultFrom={activeAccount?.username || userEmail}
-            defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
+        {/* Desktop View - Resizable Panels */}
+        <div className="hidden lg:flex flex-1 overflow-hidden">
+          <ResizablePanel
+            defaultLeftWidth={400}
+            minLeftWidth={300}
+            maxLeftWidth={700}
+            className="flex-1"
+            leftPanel={
+              <MessageList
+                messages={filteredMessages}
+                selectedMessage={selectedMessage}
+                selectedFolder={selectedFolder}
+                selectedEmails={selectedEmails}
+                onSelectMessage={handleSelectMessage}
+                onToggleSelection={handleToggleSelection}
+                onSelectAll={handleSelectAll}
+                onRefresh={handleRefreshMessages}
+                onLoadMore={handleLoadMore}
+                onBulkDelete={handleBulkDelete}
+                onBulkMarkRead={handleBulkMarkRead}
+                onBulkMarkUnread={handleBulkMarkUnread}
+                onBulkRemoveFromSpam={handleBulkRemoveFromSpam}
+                onBulkRestoreFromTrash={handleBulkRestoreFromTrash}
+                hasMore={!!nextCursor}
+                loading={loading.messages}
+                error={error}
+                searchQuery={searchQuery}
+              />
+            }
+            rightPanel={
+              <DetailView
+                composeOpen={composeOpen}
+                composeInitialData={composeInitialData}
+                onCloseCompose={() => {
+                  setComposeOpen(false);
+                  setComposeInitialData(null);
+                }}
+                onSendMail={handleSendMail}
+                message={selectedMessage}
+                messageDetail={messageDetail}
+                loading={loading.detail}
+                selectedFolder={selectedFolder}
+                onCompose={() => {
+                  setComposeInitialData(null);
+                  setComposeOpen(true);
+                  setMobileView("detail");
+                }}
+                onForward={handleForward}
+                onStar={handleStar}
+                onMarkUnread={handleMarkUnread}
+                onMarkAsSpam={handleMarkAsSpam}
+                onUnmarkSpam={handleUnmarkSpam}
+                onRestoreFromTrash={handleRestoreFromTrash}
+                onDelete={handleDelete}
+                defaultFrom={activeAccount?.username || userEmail}
+                defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
+              />
+            }
           />
         </div>
 

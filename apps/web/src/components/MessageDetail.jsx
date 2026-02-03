@@ -342,7 +342,7 @@ export function MessageDetail({
 
           {/* Message Body */}
           <div className="bg-white text-gray-900 rounded-lg p-6 shadow-sm border border-border/20">
-            <div className="prose prose-sm leading-relaxed max-w-3xl mx-auto"
+            <div className="prose prose-sm leading-relaxed w-full"
               style={{ wordBreak: "break-word" }}
               dangerouslySetInnerHTML={{
                 __html: sanitizeHTMLLength(
