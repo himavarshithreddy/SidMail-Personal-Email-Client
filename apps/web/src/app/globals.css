@@ -326,6 +326,80 @@ textarea.input {
   font-style: italic;
 }
 
+/* Prose styles for light backgrounds (email content) */
+.bg-white .prose {
+  color: #1f2937;
+}
+
+.bg-white .prose a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-decoration-color: rgba(37, 99, 235, 0.3);
+}
+
+.bg-white .prose a:hover {
+  color: #1d4ed8;
+  text-decoration-color: rgba(29, 78, 216, 0.5);
+}
+
+.bg-white .prose strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.bg-white .prose code {
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.bg-white .prose pre {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.bg-white .prose blockquote {
+  border-left: 3px solid #2563eb;
+  padding-left: 1rem;
+  color: #4b5563;
+  font-style: italic;
+}
+
+.bg-white .prose h1,
+.bg-white .prose h2,
+.bg-white .prose h3,
+.bg-white .prose h4,
+.bg-white .prose h5,
+.bg-white .prose h6 {
+  color: #111827;
+}
+
+.bg-white .prose p {
+  color: #1f2937;
+}
+
+.bg-white .prose ul,
+.bg-white .prose ol {
+  color: #1f2937;
+}
+
+.bg-white .prose table {
+  color: #1f2937;
+}
+
+.bg-white .prose th {
+  color: #111827;
+}
+
+.bg-white .prose td {
+  color: #1f2937;
+}
+
 .tiptap-editor .ProseMirror,
 .tiptap-editor .tiptap-prosemirror {
   min-height: 220px;

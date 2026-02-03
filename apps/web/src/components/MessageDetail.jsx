@@ -48,7 +48,7 @@ export function MessageDetail({
 
   const isFlagged = (message.flags || []).includes("\\Flagged");
   const [downloadingAll, setDownloadingAll] = useState(false);
-  
+
   // Check if current folder is spam/junk
   const isSpamFolder = selectedFolder && (
     selectedFolder.toLowerCase().includes("spam") ||
@@ -142,7 +142,7 @@ export function MessageDetail({
     printWindow.document.write(printContent);
     printWindow.document.close();
     printWindow.focus();
-    
+
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
@@ -151,7 +151,7 @@ export function MessageDetail({
 
   const handleDownloadAll = async () => {
     if (!detail.attachments || detail.attachments.length === 0) return;
-    
+
     setDownloadingAll(true);
     try {
       await downloadAllAttachments(
@@ -266,19 +266,19 @@ export function MessageDetail({
               </svg>
             </button>
           )}
-        {isTrashFolder && (
-          <button
-            className="p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
-            onClick={onRestoreFromTrash}
-            aria-label="Move to inbox"
-            title="Move to inbox"
-          >
-            <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5 5 12l7 7" />
-            </svg>
-          </button>
-        )}
+          {isTrashFolder && (
+            <button
+              className="p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
+              onClick={onRestoreFromTrash}
+              aria-label="Move to inbox"
+              title="Move to inbox"
+            >
+              <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5 5 12l7 7" />
+              </svg>
+            </button>
+          )}
           <button
             className="p-1.5 rounded-md hover:bg-muted hover:text-destructive transition-colors cursor-pointer"
             onClick={onDelete}
@@ -298,13 +298,13 @@ export function MessageDetail({
           {/* Message Header */}
           <div className="space-y-4">
             <h1 className="text-2xl font-semibold text-foreground wrap-break-word capitalize">
-                {detail.message.subject || "(No subject)"}
-              </h1>
+              {detail.message.subject || "(No subject)"}
+            </h1>
 
-                <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3">
               <div className="shrink-0 w-10 h-10 rounded-full bg-linear-to-br from-primary/40 to-accent/40 flex items-center justify-center text-foreground font-semibold">
-                    {(detail.message.from[0]?.name || detail.message.from[0]?.address || "?").charAt(0).toUpperCase()}
-                  </div>
+                {(detail.message.from[0]?.name || detail.message.from[0]?.address || "?").charAt(0).toUpperCase()}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -316,10 +316,10 @@ export function MessageDetail({
                     </div>
                   </div>
                   <div className="text-muted-foreground text-base whitespace-nowrap">
-                      {new Date(detail.date).toLocaleString()}
+                    {new Date(detail.date).toLocaleString()}
                   </div>
                 </div>
-                
+
                 <div className="mt-3 space-y-1 text-base">
                   <div className="flex gap-2">
                     <span className="text-muted-foreground w-8">To:</span>
@@ -341,18 +341,20 @@ export function MessageDetail({
           </div>
 
           {/* Message Body */}
-        <div className="prose prose-invert prose-sm text-foreground/90 leading-relaxed max-w-3xl mx-auto"
-          style={{ wordBreak: "break-word" }}
-          dangerouslySetInnerHTML={{
-            __html: sanitizeHTMLLength(
-              detail.message.html || detail.message.text?.replace(/\n/g, "<br>") || "",
-              100000
-            ),
-          }}
-        />
+          <div className="bg-white text-gray-900 rounded-lg p-6 shadow-sm border border-border/20">
+            <div className="prose prose-sm leading-relaxed max-w-3xl mx-auto"
+              style={{ wordBreak: "break-word" }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHTMLLength(
+                  detail.message.html || detail.message.text?.replace(/\n/g, "<br>") || "",
+                  100000
+                ),
+              }}
+            />
+          </div>
 
           {/* Attachments */}
-        {detail.attachments && detail.attachments.length > 0 && (
+          {detail.attachments && detail.attachments.length > 0 && (
             <section className="space-y-4 pt-6 border-t border-border">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold flex items-center gap-2 text-foreground">
@@ -397,7 +399,7 @@ export function MessageDetail({
                 ))}
               </div>
             </section>
-        )}
+          )}
         </div>
       </article>
     </>
