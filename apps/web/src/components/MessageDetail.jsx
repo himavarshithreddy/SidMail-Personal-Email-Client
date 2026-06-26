@@ -341,72 +341,87 @@ export function MessageDetail({
       </header>
 
       {/* Message Content */}
-      <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5 min-w-0 w-full flex-1">
-          {/* Subject */}
-          <h1 className="text-lg sm:text-xl font-semibold text-foreground leading-snug" style={{ wordBreak: "break-word" }}>
-            {detail.message.subject || "(No subject)"}
-          </h1>
+      <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6 min-w-0 w-full flex-1">
+          {/* Subject / Title Area */}
+          <div className="border-l-4 border-primary pl-3 sm:pl-4 py-1 flex flex-col gap-1.5 min-w-0 w-full">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20 shadow-2xs uppercase tracking-wider">
+                <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                {selectedFolder || "Message"}
+              </span>
+              {isFlagged && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-2xs uppercase tracking-wider">
+                  Starred
+                </span>
+              )}
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-foreground via-foreground/90 to-muted-foreground leading-tight sm:leading-snug tracking-tight" style={{ wordBreak: "break-word" }}>
+              {detail.message.subject || "(No subject)"}
+            </h1>
+          </div>
 
-          {/* Sender & Recipients */}
-          <div className="flex items-start gap-3">
-            <div className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-linear-to-br ${senderGradient} sender-avatar text-white text-sm sm:text-base shadow-md`}>
+          {/* Subheader: Sender & Recipients Glassmorphism Card */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-muted/20 border border-border/40 backdrop-blur-xs shadow-sm hover:shadow-md hover:bg-muted/30 transition-all duration-200 min-w-0 w-full flex items-start gap-3.5 sm:gap-4">
+            <div className={`shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-linear-to-br ${senderGradient} sender-avatar text-white text-base font-bold flex items-center justify-center shadow-lg ring-2 ring-primary/20 hover:ring-primary/40 transition-all`}>
               {senderName.charAt(0).toUpperCase()}
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 min-w-0 w-full">
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <span className="font-semibold text-foreground text-sm truncate">
+                  <span className="font-bold text-foreground text-sm sm:text-base tracking-tight truncate">
                     {detail.message.from.map((f) => f.name || f.address).join(", ")}
                   </span>
-                  <span className="hidden sm:inline text-muted-foreground text-xs truncate shrink-0">
+                  <span className="hidden sm:inline text-muted-foreground text-xs truncate shrink-0 bg-background/60 px-2 py-0.5 rounded-md border border-border/40">
                     &lt;{detail.message.from.map((f) => f.address).join(", ")}&gt;
                   </span>
                 </div>
-                <time className="text-muted-foreground text-xs whitespace-nowrap tabular-nums shrink-0" title={new Date(detail.date).toLocaleString()}>
+                <time className="text-muted-foreground text-xs font-medium px-2.5 py-1 rounded-md bg-background/60 border border-border/40 shadow-2xs whitespace-nowrap tabular-nums shrink-0" title={new Date(detail.date).toLocaleString()}>
                   {formatDate(detail.date)}
                 </time>
               </div>
 
-              <div className="mt-0.5 text-xs text-muted-foreground/70 min-w-0 w-full">
+              <div className="mt-1 text-xs text-muted-foreground/80 min-w-0 w-full">
                 <button
                   onClick={() => setShowFullRecipients(!showFullRecipients)}
-                  className="hover:text-foreground/70 transition-colors cursor-pointer inline-flex items-center gap-1 max-w-full min-w-0"
+                  className="hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1 max-w-full min-w-0 py-0.5"
                 >
-                  <span className="truncate">to {toList.length > 0 ? (toList[0].name || toList[0].address) : "me"}</span>
+                  <span className="truncate font-medium">to {toList.length > 0 ? (toList[0].name || toList[0].address) : "me"}</span>
                   {totalRecipients > 1 && (
-                    <span className="shrink-0"> and {totalRecipients - 1} other{totalRecipients - 1 > 1 ? "s" : ""}</span>
+                    <span className="shrink-0 font-medium"> and {totalRecipients - 1} other{totalRecipients - 1 > 1 ? "s" : ""}</span>
                   )}
-                  <svg className={`w-3 h-3 shrink-0 transition-transform ${showFullRecipients ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${showFullRecipients ? "rotate-180 text-primary" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {showFullRecipients && (
-                  <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border/40 space-y-1.5 text-xs">
-                    <div className="flex gap-2">
-                      <span className="text-muted-foreground/60 w-8 shrink-0 text-right">From</span>
-                      <span className="text-foreground/80" style={{ wordBreak: "break-word" }}>
+                  <div className="mt-2.5 p-3.5 rounded-xl bg-background/80 border border-border/60 shadow-inner space-y-2 text-xs backdrop-blur-sm animate-in fade-in-50 duration-150">
+                    <div className="flex gap-2.5">
+                      <span className="text-muted-foreground font-medium w-9 shrink-0 text-right">From</span>
+                      <span className="text-foreground font-medium" style={{ wordBreak: "break-word" }}>
                         {detail.message.from.map((f) => f.name ? `${f.name} <${f.address}>` : f.address).join(", ")}
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <span className="text-muted-foreground/60 w-8 shrink-0 text-right">To</span>
-                      <span className="text-foreground/80" style={{ wordBreak: "break-word" }}>
+                    <div className="flex gap-2.5">
+                      <span className="text-muted-foreground font-medium w-9 shrink-0 text-right">To</span>
+                      <span className="text-foreground/90" style={{ wordBreak: "break-word" }}>
                         {toList.map((f) => f.name ? `${f.name} <${f.address}>` : f.address).join(", ")}
                       </span>
                     </div>
                     {ccList.length > 0 && (
-                      <div className="flex gap-2">
-                        <span className="text-muted-foreground/60 w-8 shrink-0 text-right">Cc</span>
-                        <span className="text-foreground/80" style={{ wordBreak: "break-word" }}>
+                      <div className="flex gap-2.5">
+                        <span className="text-muted-foreground font-medium w-9 shrink-0 text-right">Cc</span>
+                        <span className="text-foreground/90" style={{ wordBreak: "break-word" }}>
                           {ccList.map((f) => f.name ? `${f.name} <${f.address}>` : f.address).join(", ")}
                         </span>
                       </div>
                     )}
-                    <div className="flex gap-2">
-                      <span className="text-muted-foreground/60 w-8 shrink-0 text-right">Date</span>
-                      <span className="text-foreground/80">
+                    <div className="flex gap-2.5">
+                      <span className="text-muted-foreground font-medium w-9 shrink-0 text-right">Date</span>
+                      <span className="text-foreground/90 font-medium">
                         {new Date(detail.date).toLocaleString([], { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}
                       </span>
                     </div>

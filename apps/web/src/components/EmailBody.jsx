@@ -3,7 +3,7 @@ import { sanitizeHTMLLength } from "../lib/validation";
 
 function buildIframeDoc(html, isPlainText) {
   const content = isPlainText
-    ? `<pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;margin:0;">${html}</pre>`
+    ? `<pre style="white-space:pre-wrap;word-break:break-word;font-family:inherit;margin:0;padding:16px 24px;font-size:15px;color:#1f2937;">${html}</pre>`
     : html;
 
   const viewportMeta = isPlainText
@@ -28,7 +28,7 @@ ${viewportMeta}
     background: #ffffff;
     color: #1f2937;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.65;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -38,12 +38,39 @@ ${viewportMeta}
   ${extraStyles}
   a { color: #2563eb; }
   a:hover { color: #1d4ed8; }
-  pre { overflow-x: auto; }
+  pre { overflow-x: auto; font-family: inherit; }
   blockquote {
     border-left: 3px solid #d1d5db;
     padding-left: 12px;
     margin-left: 0;
     color: #6b7280;
+  }
+
+  /* Styling for top-level email subheaders, titles, and preheader text */
+  body > div:not([style*="display: none"]):not([style*="display:none"]),
+  body > p,
+  body > h1,
+  body > h2,
+  body > h3,
+  body > h4,
+  body > span,
+  body > header {
+    padding: 16px 24px;
+    margin: 0 auto;
+    max-width: 640px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+  }
+
+  /* Ensure tables inside divs don't get double padding/font override if they have their own */
+  body > div > table {
+    font-weight: normal;
+    font-size: 14px;
+    color: #1f2937;
   }
 
   .sidmail-quoted { display: none; }
@@ -62,7 +89,7 @@ ${viewportMeta}
     color: #6b7280;
     letter-spacing: 1px;
     line-height: 1;
-    margin: 8px 0;
+    margin: 12px 24px;
     transition: background 0.15s;
     font-family: inherit;
     padding: 0;
@@ -91,11 +118,16 @@ function isQuoteLine(line) {
 }
 
 function wrapQuotedTextPlain(text) {
+  if (/forwarded message/i.test(text)) {
+    return text.split("\n").map(escapeHtml).join("\n");
+  }
+
   const lines = text.split("\n");
   const result = [];
   let inQuote = false;
   let quoteBuffer = [];
   let quoteId = 0;
+  let hasMainContent = false;
 
   const flushQuote = () => {
     if (quoteBuffer.length === 0) return;
@@ -111,7 +143,11 @@ function wrapQuotedTextPlain(text) {
   };
 
   for (const line of lines) {
-    if (isQuoteLine(line)) {
+    if (!inQuote && !hasMainContent && line.trim() !== "" && !isQuoteLine(line)) {
+      hasMainContent = true;
+    }
+
+    if (hasMainContent && isQuoteLine(line)) {
       if (!inQuote) inQuote = true;
       quoteBuffer.push(escapeHtml(line));
     } else {
@@ -139,6 +175,10 @@ function escapeHtml(text) {
 }
 
 function wrapQuotedTextHtml(html) {
+  if (/forwarded message/i.test(html)) {
+    return html;
+  }
+
   let quoteId = 0;
 
   const makeToggle = (id) =>
@@ -149,7 +189,11 @@ function wrapQuotedTextHtml(html) {
   // Gmail-style: <div class="gmail_quote">
   result = result.replace(
     /(<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>)/gi,
-    (match) => {
+    (...args) => {
+      const match = args[0];
+      const offset = args[args.length - 2];
+      const textBefore = html.substring(0, offset).replace(/<[^>]+>/g, "").trim();
+      if (textBefore.length < 5) return match;
       quoteId++;
       const id = `hq${quoteId}`;
       return `${makeToggle(id)}<div class="sidmail-quoted" id="${id}">${match}`;
@@ -159,8 +203,6 @@ function wrapQuotedTextHtml(html) {
     // Close the wrapper divs we opened
     let count = quoteId;
     const closeTag = "</div>";
-    // Find the last </div> for each quote wrapper
-    // Simple approach: just append closing divs
     result += closeTag.repeat(count);
   }
 
@@ -168,7 +210,11 @@ function wrapQuotedTextHtml(html) {
   if (quoteId === 0) {
     result = result.replace(
       /(<div[^>]*(?:id="?appendonsend"?|class="[^"]*(?:moz-cite-prefix|yahoo_quoted)[^"]*")[^>]*>)/gi,
-      (match) => {
+      (...args) => {
+        const match = args[0];
+        const offset = args[args.length - 2];
+        const textBefore = html.substring(0, offset).replace(/<[^>]+>/g, "").trim();
+        if (textBefore.length < 5) return match;
         quoteId++;
         const id = `hq${quoteId}`;
         return `${makeToggle(id)}<div class="sidmail-quoted" id="${id}">${match}`;
@@ -183,13 +229,17 @@ function wrapQuotedTextHtml(html) {
   if (quoteId === 0) {
     result = result.replace(
       /<blockquote[^>]*type="?cite"?[^>]*>/gi,
-      (match) => {
+      (...args) => {
+        const match = args[0];
+        const offset = args[args.length - 2];
+        const textBefore = html.substring(0, offset).replace(/<[^>]+>/g, "").trim();
+        if (textBefore.length < 5) return match;
         quoteId++;
         const id = `hq${quoteId}`;
         return `${makeToggle(id)}<div class="sidmail-quoted" id="${id}">${match}`;
       }
     );
-    if (quoteId > 1) {
+    if (quoteId > 0) {
       // Close after each </blockquote>
       let remaining = quoteId;
       result = result.replace(/<\/blockquote>/gi, (match) => {

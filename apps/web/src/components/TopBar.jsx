@@ -97,7 +97,7 @@ export function TopBar({
   };
 
   return (
-    <header className="h-16 px-6 flex items-center justify-between border-b border-border bg-background">
+    <header className="h-16 px-4 lg:px-6 flex items-center justify-between gap-3 sm:gap-4 border-b border-border bg-background">
       {/* Logo - Hidden on mobile */}
       <div className="hidden lg:flex items-center gap-3">
         <div className="flex items-center gap-1.5">
@@ -113,7 +113,7 @@ export function TopBar({
       </div>
 
       {/* Search Bar - Full width on mobile */}
-      <div className="flex-1 lg:max-w-md lg:mx-8 pl-12 lg:pl-0 min-w-0">
+      <div className="flex-1 lg:max-w-md lg:mx-8 pl-14 lg:pl-0 min-w-0">
         <div className="relative group">
           <svg
             xmlns="http://www.w3.org/2000/svg"

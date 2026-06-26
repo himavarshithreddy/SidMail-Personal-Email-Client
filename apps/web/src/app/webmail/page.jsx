@@ -608,6 +608,20 @@ function WebmailPageContent() {
   const handleForward = () => {
     if (!messageDetail) return;
 
+    // Helper to format plain text to HTML
+    const localPlainTextToHtml = (text) => {
+      if (!text) return "";
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+        .split(/\r?\n/)
+        .map((line) => `<p>${line || "<br>"}</p>`)
+        .join("");
+    };
+
     // Format the forwarded message
     const forwardText = `\n\n---------- Forwarded message ----------\n` +
       `From: ${messageDetail.message.from.map(f => f.name || f.address).join(", ")}\n` +
@@ -616,13 +630,40 @@ function WebmailPageContent() {
       `Subject: ${messageDetail.message.subject || "(No subject)"}\n\n` +
       `${messageDetail.message.text || messageDetail.message.html?.replace(/<[^>]*>/g, "") || ""}`;
 
+    const originalHtml = messageDetail.message.html || localPlainTextToHtml(messageDetail.message.text || "");
+    const dateStr = new Date(messageDetail.date).toLocaleString();
+    const fromStr = messageDetail.message.from.map(f => f.name ? `${f.name} &lt;${f.address}&gt;` : f.address).join(", ");
+    const toStr = messageDetail.message.to.map(f => f.name ? `${f.name} &lt;${f.address}&gt;` : f.address).join(", ");
+    const subjectStr = messageDetail.message.subject || "(No subject)";
+    const forwardHtml = `<p><br></p><p><br></p>` +
+      `<div class="gmail_quote">` +
+      `<div class="gmail_attr" style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px;">` +
+      `<strong>---------- Forwarded message ----------</strong><br>` +
+      `<strong>From:</strong> ${fromStr}<br>` +
+      `<strong>Date:</strong> ${dateStr}<br>` +
+      `<strong>Subject:</strong> ${subjectStr}<br>` +
+      `<strong>To:</strong> ${toStr}<br><br>` +
+      `${originalHtml}` +
+      `</div>` +
+      `</div>`;
+
     const forwardSubject = `Fwd: ${messageDetail.message.subject || "(No subject)"}`;
 
     setComposeInitialData({
       to: "",
       subject: forwardSubject,
       text: forwardText,
+      html: forwardHtml,
       isForward: true,
+      attachments: messageDetail.attachments?.map(att => ({
+        filename: att.filename,
+        contentType: att.mimeType || att.contentType || "application/octet-stream",
+        size: att.size,
+        part: att.part,
+        uid: messageDetail.uid,
+        folder: selectedFolder,
+        accountId: activeAccountId
+      })) || [],
     });
     setComposeOpen(true);
     setMobileView("detail");

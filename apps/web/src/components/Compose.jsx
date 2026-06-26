@@ -13,6 +13,20 @@ import { ErrorMessage } from "./ui/ErrorMessage";
 import { validateEmails } from "../lib/validation";
 import { ColorPicker } from "./ui/ColorPicker";
 import { FontSize } from "../lib/tiptap-extensions";
+import { API_BASE } from "../lib/api";
+
+const blobToBase64 = (blob) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      const base64 = typeof dataUrl === "string" ? dataUrl.split(",")[1] : "";
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+};
 
 const decodeHtmlEntities = (value = "") => {
   if (!value) return "";
@@ -81,6 +95,7 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
   const [formData, setFormData] = useState({ from: "", fromName: "", to: "", subject: "", text: "", html: "" });
   const [showFrom, setShowFrom] = useState(false);
   const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -169,16 +184,49 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
     });
 
   useEffect(() => {
-    const initialHtml = initialData?.html || plainTextToHtml(initialData?.text || "");
+    let active = true;
     if (initialData) {
+      let initialHtml = "";
+      let toVal = "";
+      let subjectVal = "";
+      let textVal = "";
+
+      if (initialData.replyTo && initialData.detail) {
+        const detail = initialData.detail;
+        const senderName = detail.message.from[0]?.name || detail.message.from[0]?.address || "?";
+        const senderAddress = detail.message.from[0]?.address || "";
+        const dateStr = new Date(detail.date).toLocaleString();
+
+        toVal = senderAddress;
+        subjectVal = detail.message.subject?.toLowerCase().startsWith("re:")
+          ? detail.message.subject
+          : `Re: ${detail.message.subject || "(No subject)"}`;
+        textVal = `\n\nOn ${dateStr}, ${senderName} <${senderAddress}> wrote:\n> ` +
+          (detail.message.text || "").replace(/\r?\n/g, "\n> ");
+
+        const originalHtml = detail.message.html || plainTextToHtml(detail.message.text || "");
+        initialHtml = `<p><br></p><p><br></p><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">` +
+          `<div class="gmail_attr">On ${dateStr}, ${senderName} &lt;${senderAddress}&gt; wrote:<br></div>` +
+          `${originalHtml}` +
+          `</blockquote>`;
+      } else {
+        initialHtml = initialData.html || plainTextToHtml(initialData.text || "");
+        toVal = initialData.to || "";
+        subjectVal = initialData.subject || "";
+        textVal = initialData.text || "";
+      }
+
+      const sanitizedInitialHtml = DOMPurify.sanitize(initialHtml, { USE_PROFILES: { html: true } });
       setFormData({
         from: initialData.from || defaultFrom || "",
         fromName: initialData.fromName || defaultFromName || "",
-        to: initialData.to || "",
-        subject: initialData.subject || "",
-        text: initialData.text || "",
-        html: DOMPurify.sanitize(initialHtml, { USE_PROFILES: { html: true } }),
+        to: toVal,
+        subject: subjectVal,
+        text: textVal,
+        html: sanitizedInitialHtml,
       });
+      setRawHtml(sanitizedInitialHtml);
+
       if (initialData.cc) {
         setCcBcc({ cc: initialData.cc, bcc: initialData.bcc || "" });
         setShowCc(true);
@@ -191,20 +239,67 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
       } else {
         setShowBcc(false);
       }
+
+      if (initialData.attachments && initialData.attachments.length > 0) {
+        setAttachmentsLoading(true);
+        const loadForwardedAttachments = async () => {
+          try {
+            const loaded = await Promise.all(
+              initialData.attachments.map(async (att) => {
+                const qs = new URLSearchParams({
+                  folder: att.folder,
+                  ...(att.accountId ? { accountId: att.accountId } : {}),
+                }).toString();
+                const url = `${API_BASE}/mail/attachments/${att.uid}/${att.part}?${qs}`;
+                const res = await fetch(url, { credentials: "include" });
+                if (!res.ok) throw new Error(`Failed to download ${att.filename}`);
+                const blob = await res.blob();
+                const base64 = await blobToBase64(blob);
+                return {
+                  filename: att.filename,
+                  contentType: att.contentType,
+                  size: att.size,
+                  content: base64,
+                  encoding: "base64",
+                };
+              })
+            );
+            if (active) {
+              setAttachments(loaded);
+            }
+          } catch (err) {
+            if (active) {
+              setError(`Failed to load forwarded attachments: ${err.message}`);
+            }
+          } finally {
+            if (active) {
+              setAttachmentsLoading(false);
+            }
+          }
+        };
+        loadForwardedAttachments();
+      } else {
+        setAttachments([]);
+      }
     } else {
       setFormData({ from: defaultFrom || "", fromName: defaultFromName || "", to: "", subject: "", text: "", html: "" });
       setCcBcc({ cc: "", bcc: "" });
       setShowCc(false);
       setShowBcc(false);
+      setAttachments([]);
+      setRawHtml("");
     }
 
-    setAttachments([]);
     setShowFrom(false);
     setError("");
     // Focus first input
     setTimeout(() => {
       toInputRef.current?.focus();
     }, 100);
+
+    return () => {
+      active = false;
+    };
   }, [initialData, defaultFrom, defaultFromName]);
 
   useEffect(() => {
@@ -371,6 +466,21 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
     `px-3 py-1.5 text-base rounded-md border border-border/70 bg-background transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
       active ? "bg-muted text-foreground border-border" : "text-muted-foreground hover:bg-muted/80"
     }`;
+
+  const handleToggleMode = () => {
+    if (isRichTextMode) {
+      const currentHtml = editor ? editor.getHTML() : formData.html;
+      setRawHtml(currentHtml || "");
+      setIsRichTextMode(false);
+    } else {
+      const sanitized = DOMPurify.sanitize(rawHtml || "", { USE_PROFILES: { html: true } });
+      setFormData((prev) => ({ ...prev, html: sanitized }));
+      if (editor) {
+        editor.commands.setContent(sanitized, false);
+      }
+      setIsRichTextMode(true);
+    }
+  };
 
   return (
     <>
@@ -544,7 +654,7 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
                 </label>
                 <button
                   type="button"
-                  onClick={() => setIsRichTextMode(!isRichTextMode)}
+                  onClick={handleToggleMode}
                   className="px-3 py-1 text-sm rounded-md border border-border bg-background hover:bg-muted transition-colors cursor-pointer"
                   disabled={sending}
                   title={isRichTextMode ? "Switch to HTML" : "Switch to Rich Text"}
@@ -881,9 +991,16 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-base font-medium text-foreground">Attachments</span>
+                <span className="text-base font-medium text-foreground flex items-center gap-2">
+                  Attachments
+                  {attachmentsLoading && (
+                    <svg className="w-4 h-4 animate-spin text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                </span>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{attachments.length} file(s)</span>
+                  <span>{attachmentsLoading ? "Loading forwarded attachments..." : `${attachments.length} file(s)`}</span>
                   <span>•</span>
                   <span>
                     {formatSize(attachments.reduce((sum, att) => sum + (att.size || 0), 0))} / 25MB
@@ -894,7 +1011,7 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
                 <button
                   type="button"
                   className="px-3 py-2 rounded-md border border-border bg-muted hover:bg-muted/80 text-sm cursor-pointer"
-                  disabled={sending}
+                  disabled={sending || attachmentsLoading}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   Add attachment
@@ -918,7 +1035,7 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
                       onClick={() => handleRemoveAttachment(idx)}
                       className="text-muted-foreground hover:text-foreground cursor-pointer"
                       aria-label={`Remove ${att.filename}`}
-                      disabled={sending}
+                      disabled={sending || attachmentsLoading}
                     >
                       ✕
                     </button>
@@ -936,16 +1053,16 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
               type="button"
               className="btn-ghost cursor-pointer"
               onClick={onClose}
-              disabled={sending}
+              disabled={sending || attachmentsLoading}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="btn-primary cursor-pointer"
-              disabled={sending}
+              disabled={sending || attachmentsLoading}
             >
-              {sending ? "Sending..." : "Send"}
+              {sending ? "Sending..." : attachmentsLoading ? "Loading attachments..." : "Send"}
             </button>
           </div>
         </form>
