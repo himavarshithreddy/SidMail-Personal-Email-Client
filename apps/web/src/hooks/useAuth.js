@@ -16,8 +16,10 @@ export function useAuth() {
       const stored = localStorage.getItem("activeAccountId");
       const nextActive = stored && list.some((a) => String(a.id) === stored) ? stored : list[0]?.id || null;
       setActiveAccountId(nextActive);
-      if (list[0]?.username) {
-        setUserEmail(list[0].username);
+      const activeAcc = list.find((a) => String(a.id) === String(nextActive)) || list[0];
+      if (activeAcc?.username) {
+        setUserEmail(activeAcc.username);
+        localStorage.setItem("userEmail", activeAcc.username);
       }
       if (nextActive) {
         localStorage.setItem("activeAccountId", nextActive);
@@ -66,10 +68,16 @@ export function useAuth() {
 
   const login = async (credentials, append = false) => {
     if (append) {
-      await apiFetch("/auth/add-account", {
+      const data = await apiFetch("/auth/add-account", {
         method: "POST",
         body: JSON.stringify(credentials),
       });
+      const newAcc = data.accounts?.find(a => a.username === credentials.username) || data.accounts?.[data.accounts.length - 1];
+      if (newAcc?.id) {
+        localStorage.setItem("activeAccountId", newAcc.id);
+        localStorage.setItem("userEmail", newAcc.username);
+        setUserEmail(newAcc.username);
+      }
       await loadAccounts();
       return;
     }
@@ -98,8 +106,14 @@ export function useAuth() {
     setActiveAccountId(id);
     if (id) {
       localStorage.setItem("activeAccountId", id);
+      const activeAcc = accounts.find((a) => String(a.id) === String(id));
+      if (activeAcc?.username) {
+        setUserEmail(activeAcc.username);
+        localStorage.setItem("userEmail", activeAcc.username);
+      }
     } else {
       localStorage.removeItem("activeAccountId");
+      localStorage.removeItem("userEmail");
     }
   };
 
