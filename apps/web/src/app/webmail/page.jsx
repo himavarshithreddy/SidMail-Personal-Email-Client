@@ -27,6 +27,7 @@ function WebmailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const lastSyncedParams = useRef(searchParams.toString());
+  const pendingUrl = useRef(null);
   const suppressUrlApplyRef = useRef(false);
   const { isAuthed, checking, userEmail, accounts, activeAccountId, changeActiveAccount, logout, loadAccounts } = useAuth();
   const {
@@ -124,6 +125,7 @@ function WebmailPageContent() {
 
     if (changed) {
       lastSyncedParams.current = qs;
+      pendingUrl.current = qs;
       router.replace(qs ? `/webmail?${qs}` : "/webmail", { scroll: false });
     }
   }, [selectedFolder, selectedMessage?.uid, composeOpen, isAuthed, checking, searchParams, router]);
@@ -132,12 +134,23 @@ function WebmailPageContent() {
   useEffect(() => {
     if (!isAuthed || checking) return;
 
+    const currentQs = searchParams.toString();
+
+    if (pendingUrl.current === currentQs) {
+      pendingUrl.current = null;
+      return;
+    }
+
+    if (pendingUrl.current !== null) {
+      return;
+    }
+
     if (suppressUrlApplyRef.current) {
       suppressUrlApplyRef.current = false;
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(currentQs);
     let sanitized = false;
 
     // Sanitize compose
@@ -166,14 +179,15 @@ function WebmailPageContent() {
     if (sanitized) {
       const sanitizedQs = params.toString();
       lastSyncedParams.current = sanitizedQs;
+      pendingUrl.current = sanitizedQs;
       router.replace(sanitizedQs ? `/webmail?${sanitizedQs}` : "/webmail", { scroll: false });
       return;
     }
 
-    // Track latest params to prevent replace loops
-    const currentQs = params.toString();
     if (currentQs !== lastSyncedParams.current) {
       lastSyncedParams.current = currentQs;
+    } else {
+      return;
     }
 
     const folderParam = params.get("folder");
@@ -183,6 +197,7 @@ function WebmailPageContent() {
         const sanitizedQs = params.toString();
         if (sanitizedQs !== lastSyncedParams.current) {
           lastSyncedParams.current = sanitizedQs;
+          pendingUrl.current = sanitizedQs;
           router.replace(sanitizedQs ? `/webmail?${sanitizedQs}` : "/webmail", { scroll: false });
         }
       }
@@ -208,6 +223,7 @@ function WebmailPageContent() {
         nextParams.delete("uid");
         const sanitizedQs = nextParams.toString();
         lastSyncedParams.current = sanitizedQs;
+        pendingUrl.current = sanitizedQs;
         router.replace(sanitizedQs ? `/webmail?${sanitizedQs}` : "/webmail", { scroll: false });
         handleRefreshMessages();
         return;
@@ -228,6 +244,7 @@ function WebmailPageContent() {
             nextParams.delete("uid");
             const sanitizedQs = nextParams.toString();
             lastSyncedParams.current = sanitizedQs;
+            pendingUrl.current = sanitizedQs;
             router.replace(sanitizedQs ? `/webmail?${sanitizedQs}` : "/webmail", { scroll: false });
             handleRefreshMessages();
             return;
@@ -247,6 +264,7 @@ function WebmailPageContent() {
     messages,
     selectFolder,
     loadMessageDetail,
+    router,
   ]);
 
   // Keyboard shortcuts
@@ -515,6 +533,7 @@ function WebmailPageContent() {
   };
 
   const handleSelectMessage = (message, skipUrlSync = false) => {
+    suppressUrlApplyRef.current = true;
     // Close compose if open
     if (composeOpen) {
       setComposeOpen(false);
@@ -607,6 +626,7 @@ function WebmailPageContent() {
 
   const handleForward = () => {
     if (!messageDetail) return;
+    suppressUrlApplyRef.current = true;
 
     // Helper to format plain text to HTML
     const localPlainTextToHtml = (text) => {
@@ -761,6 +781,7 @@ function WebmailPageContent() {
               composeOpen={composeOpen}
               composeInitialData={composeInitialData}
               onCloseCompose={() => {
+                suppressUrlApplyRef.current = true;
                 setComposeOpen(false);
                 setComposeInitialData(null);
                 if (window.innerWidth < 1024 && !selectedMessage) {
@@ -774,6 +795,7 @@ function WebmailPageContent() {
               selectedFolder={selectedFolder}
               onReply={() => {
                 if (selectedMessage && messageDetail) {
+                  suppressUrlApplyRef.current = true;
                   setComposeInitialData({
                     replyTo: selectedMessage,
                     detail: messageDetail,
@@ -783,6 +805,7 @@ function WebmailPageContent() {
                 }
               }}
               onCompose={() => {
+                suppressUrlApplyRef.current = true;
                 setComposeInitialData(null);
                 setComposeOpen(true);
                 setMobileView("detail");
@@ -838,6 +861,7 @@ function WebmailPageContent() {
                 composeOpen={composeOpen}
                 composeInitialData={composeInitialData}
                 onCloseCompose={() => {
+                  suppressUrlApplyRef.current = true;
                   setComposeOpen(false);
                   setComposeInitialData(null);
                 }}
@@ -848,6 +872,7 @@ function WebmailPageContent() {
                 selectedFolder={selectedFolder}
                 onReply={() => {
                   if (selectedMessage && messageDetail) {
+                    suppressUrlApplyRef.current = true;
                     setComposeInitialData({
                       replyTo: selectedMessage,
                       detail: messageDetail,
@@ -857,6 +882,7 @@ function WebmailPageContent() {
                   }
                 }}
                 onCompose={() => {
+                  suppressUrlApplyRef.current = true;
                   setComposeInitialData(null);
                   setComposeOpen(true);
                   setMobileView("detail");
@@ -878,20 +904,22 @@ function WebmailPageContent() {
       </div>
 
       {/* Floating Compose Button - Mobile Only */}
-      <button
-        onClick={() => {
-          setComposeInitialData(null);
-          setComposeOpen(true);
-          setMobileView("detail");
-        }}
-        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all z-30 flex items-center justify-center cursor-pointer"
-        aria-label="Compose new message"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M5 12h14" />
-          <path d="M12 5v14" />
-        </svg>
-      </button>
+      {!composeOpen && (
+        <button
+          onClick={() => {
+            setComposeInitialData(null);
+            setComposeOpen(true);
+            setMobileView("detail");
+          }}
+          className="lg:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all z-30 flex items-center justify-center cursor-pointer"
+          aria-label="Compose new message"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
+        </button>
+      )}
 
 
 

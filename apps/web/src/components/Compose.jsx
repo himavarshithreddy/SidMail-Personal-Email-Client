@@ -193,18 +193,18 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
 
       if (initialData.replyTo && initialData.detail) {
         const detail = initialData.detail;
-        const senderName = detail.message.from[0]?.name || detail.message.from[0]?.address || "?";
-        const senderAddress = detail.message.from[0]?.address || "";
+        const senderName = detail.message?.from?.[0]?.name || detail.message?.from?.[0]?.address || "?";
+        const senderAddress = detail.message?.from?.[0]?.address || "";
         const dateStr = new Date(detail.date).toLocaleString();
 
         toVal = senderAddress;
-        subjectVal = detail.message.subject?.toLowerCase().startsWith("re:")
+        subjectVal = detail.message?.subject?.toLowerCase().startsWith("re:")
           ? detail.message.subject
-          : `Re: ${detail.message.subject || "(No subject)"}`;
+          : `Re: ${detail.message?.subject || "(No subject)"}`;
         textVal = `\n\nOn ${dateStr}, ${senderName} <${senderAddress}> wrote:\n> ` +
-          (detail.message.text || "").replace(/\r?\n/g, "\n> ");
+          (detail.message?.text || "").replace(/\r?\n/g, "\n> ");
 
-        const originalHtml = detail.message.html || plainTextToHtml(detail.message.text || "");
+        const originalHtml = detail.message?.html || plainTextToHtml(detail.message?.text || "");
         initialHtml = `<p><br></p><p><br></p><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">` +
           `<div class="gmail_attr">On ${dateStr}, ${senderName} &lt;${senderAddress}&gt; wrote:<br></div>` +
           `${originalHtml}` +
@@ -304,11 +304,24 @@ export function Compose({ onClose, onSend, initialData, defaultFrom, defaultFrom
 
   useEffect(() => {
     if (!editor) return;
-    const nextHtml = DOMPurify.sanitize(formData.html || "", { USE_PROFILES: { html: true } });
-    if (editor.getHTML() !== nextHtml) {
-      editor.commands.setContent(nextHtml, false);
+    let initialHtml = "";
+    if (initialData) {
+      if (initialData.replyTo && initialData.detail) {
+        const detail = initialData.detail;
+        const senderName = detail.message?.from?.[0]?.name || detail.message?.from?.[0]?.address || "?";
+        const senderAddress = detail.message?.from?.[0]?.address || "";
+        const dateStr = new Date(detail.date).toLocaleString();
+        const originalHtml = detail.message?.html || plainTextToHtml(detail.message?.text || "");
+        initialHtml = `<p><br></p><p><br></p><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div class="gmail_attr">On ${dateStr}, ${senderName} &lt;${senderAddress}&gt; wrote:<br></div>${originalHtml}</blockquote>`;
+      } else {
+        initialHtml = initialData.html || plainTextToHtml(initialData.text || "");
+      }
     }
-  }, [editor, formData.html]);
+    const sanitizedInitialHtml = DOMPurify.sanitize(initialHtml, { USE_PROFILES: { html: true } });
+    if (editor.getHTML() !== sanitizedInitialHtml && (editor.isEmpty || editor.getHTML() === "<p></p>")) {
+      editor.commands.setContent(sanitizedInitialHtml, false);
+    }
+  }, [editor, initialData]);
 
   // Handle Escape key
   useEffect(() => {
