@@ -79,6 +79,10 @@
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -86,6 +90,7 @@ body {
   letter-spacing: -0.01em;
   margin: 0;
   line-height: inherit;
+  overflow-x: hidden;
 }
 
 /* Scrollbar styling */
@@ -105,6 +110,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 /* Checkbox styling - matching star icon border */

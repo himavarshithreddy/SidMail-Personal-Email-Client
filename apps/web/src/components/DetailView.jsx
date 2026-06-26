@@ -10,6 +10,7 @@ export function DetailView({
   messageDetail,
   loading,
   selectedFolder,
+  onReply,
   onCompose,
   onForward,
   onStar,
@@ -18,11 +19,12 @@ export function DetailView({
   onUnmarkSpam,
   onRestoreFromTrash,
   onDelete,
+  onBack,
   defaultFrom,
   defaultFromName,
 }) {
   return (
-    <div className="flex-1 flex flex-col bg-background h-full overflow-hidden">
+    <div className="flex-1 flex flex-col bg-background h-full overflow-hidden min-w-0 w-full">
       {composeOpen ? (
         <Compose
           onClose={onCloseCompose}
@@ -37,6 +39,7 @@ export function DetailView({
           detail={messageDetail}
           loading={loading}
           selectedFolder={selectedFolder}
+          onReply={onReply}
           onCompose={onCompose}
           onForward={onForward}
           onStar={onStar}
@@ -45,6 +48,7 @@ export function DetailView({
           onUnmarkSpam={onUnmarkSpam}
           onRestoreFromTrash={onRestoreFromTrash}
           onDelete={onDelete}
+          onBack={onBack}
         />
       )}
     </div>

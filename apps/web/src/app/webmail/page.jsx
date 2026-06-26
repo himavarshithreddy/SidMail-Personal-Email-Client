@@ -656,7 +656,7 @@ function WebmailPageContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="h-screen flex flex-col bg-background overflow-hidden min-w-0 w-full">
       {/* Top Bar */}
       <TopBar
         onSearch={handleSearch}
@@ -672,7 +672,7 @@ function WebmailPageContent() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-w-0 w-full">
         {/* Sidebar - FolderList handles its own mobile visibility */}
         <div>
           <FolderList
@@ -689,9 +689,9 @@ function WebmailPageContent() {
         </div>
 
         {/* Mobile View - Show either messages or detail */}
-        <div className="lg:hidden flex-1 flex overflow-hidden">
+        <div className="lg:hidden flex-1 flex overflow-hidden min-w-0 w-full">
           {/* Message List - Mobile */}
-          <div className={`${mobileView === "messages" ? "block" : "hidden"} h-full w-full`}>
+          <div className={`${mobileView === "messages" ? "block" : "hidden"} h-full w-full min-w-0`}>
             <MessageList
               messages={filteredMessages}
               selectedMessage={selectedMessage}
@@ -715,7 +715,7 @@ function WebmailPageContent() {
           </div>
 
           {/* Message Detail or Compose - Mobile */}
-          <div className={`${mobileView === "detail" || composeOpen ? "block" : "hidden"} w-full`}>
+          <div className={`${mobileView === "detail" || composeOpen ? "block" : "hidden"} w-full min-w-0`}>
             <DetailView
               composeOpen={composeOpen}
               composeInitialData={composeInitialData}
@@ -731,6 +731,16 @@ function WebmailPageContent() {
               messageDetail={messageDetail}
               loading={loading.detail}
               selectedFolder={selectedFolder}
+              onReply={() => {
+                if (selectedMessage && messageDetail) {
+                  setComposeInitialData({
+                    replyTo: selectedMessage,
+                    detail: messageDetail,
+                  });
+                  setComposeOpen(true);
+                  setMobileView("detail");
+                }
+              }}
               onCompose={() => {
                 setComposeInitialData(null);
                 setComposeOpen(true);
@@ -743,6 +753,10 @@ function WebmailPageContent() {
               onUnmarkSpam={handleUnmarkSpam}
               onRestoreFromTrash={handleRestoreFromTrash}
               onDelete={handleDelete}
+              onBack={() => {
+                setMobileView("messages");
+                setComposeOpen(false);
+              }}
               defaultFrom={activeAccount?.username || userEmail}
               defaultFromName={(activeAccount?.username || userEmail || "").split("@")[0] || ""}
             />
@@ -750,7 +764,7 @@ function WebmailPageContent() {
         </div>
 
         {/* Desktop View - Resizable Panels */}
-        <div className="hidden lg:flex flex-1 overflow-hidden">
+        <div className="hidden lg:flex flex-1 overflow-hidden min-w-0 w-full">
           <ResizablePanel
             defaultLeftWidth={400}
             minLeftWidth={300}
@@ -791,6 +805,16 @@ function WebmailPageContent() {
                 messageDetail={messageDetail}
                 loading={loading.detail}
                 selectedFolder={selectedFolder}
+                onReply={() => {
+                  if (selectedMessage && messageDetail) {
+                    setComposeInitialData({
+                      replyTo: selectedMessage,
+                      detail: messageDetail,
+                    });
+                    setComposeOpen(true);
+                    setMobileView("detail");
+                  }
+                }}
                 onCompose={() => {
                   setComposeInitialData(null);
                   setComposeOpen(true);

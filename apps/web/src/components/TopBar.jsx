@@ -113,7 +113,7 @@ export function TopBar({
       </div>
 
       {/* Search Bar - Full width on mobile */}
-      <div className="flex-1 lg:max-w-md lg:mx-8">
+      <div className="flex-1 lg:max-w-md lg:mx-8 pl-12 lg:pl-0 min-w-0">
         <div className="relative group">
           <svg
             xmlns="http://www.w3.org/2000/svg"
